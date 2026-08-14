@@ -9,6 +9,9 @@ import { NexoraRewardsSection } from './NexoraRewardsSection';
 import { BranchSwitcher } from './BranchSwitcher';
 import { OrderHistoryEmptyState } from './EmptyState';
 import { QuickSupportCard } from './QuickSupportCard';
+import { SmartReorderWidget } from './SmartReorderWidget';
+import { QuickScanModal } from './QuickScanModal';
+import { getSmartReorderSuggestions } from '../utils/reorderUtils';
 import { exportOrdersToCSV, exportOrdersToPDF } from '../utils/exportUtils';
 
 interface ProfileScreenProps {
@@ -35,6 +38,7 @@ export function ProfileScreen({
   onExploreShop,
 }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isQuickScanOpen, setIsQuickScanOpen] = useState(false);
   const [salonName, setSalonName] = useState(user.salonName);
   const [gstNumber, setGstNumber] = useState(user.gstNumber);
   const [city, setCity] = useState(user.city);
@@ -68,6 +72,7 @@ export function ProfileScreen({
   });
 
   const savedAddresses = user.savedAddresses || [];
+  const reorderSuggestions = getSmartReorderSuggestions(orders);
 
   const handleSaveRating = (ratingData: OrderRatingData) => {
     setOrderRatings((prev) => ({
@@ -276,17 +281,26 @@ export function ProfileScreen({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2.5 w-full md:w-auto">
+          <button
+            id="quick-scan-btn"
+            onClick={() => setIsQuickScanOpen(true)}
+            className="flex-1 md:flex-none bg-[#8e004b] hover:bg-[#b90064] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs active:scale-98"
+            title="Scan product QR codes with camera for instant inventory check or reorder"
+          >
+            <span className="material-symbols-outlined text-base">qr_code_scanner</span>
+            <span>Quick Scan QR</span>
+          </button>
           <button
             onClick={() => setIsEditing(!isEditing)}
             className="flex-1 md:flex-none bg-[#F0EDEC] hover:bg-[#ece7e7] text-[#1c1b1b] text-xs font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-1.5"
           >
             <span className="material-symbols-outlined text-sm">edit</span>
-            <span>{isEditing ? 'Cancel Edit' : 'Edit Business Details'}</span>
+            <span>{isEditing ? 'Cancel Edit' : 'Edit Details'}</span>
           </button>
           <button
             onClick={onLogout}
-            className="flex-1 md:flex-none border border-red-200 hover:bg-red-50 text-[#ba1a1a] text-xs font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+            className="border border-red-200 hover:bg-red-50 text-[#ba1a1a] text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors flex items-center justify-center gap-1"
           >
             <span className="material-symbols-outlined text-sm">logout</span>
             <span>Sign Out</span>
@@ -402,6 +416,43 @@ export function ProfileScreen({
           </div>
         </div>
       </div>
+
+      {/* Quick Scan QR Code & Camera Reorder Banner */}
+      <div className="bg-gradient-to-r from-[#1c1b1b] via-[#2d1b24] to-[#1c1b1b] rounded-2xl p-5 text-white shadow-md border border-[#8e004b]/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-[#8e004b] text-white flex items-center justify-center shrink-0 shadow-sm">
+            <span className="material-symbols-outlined text-2xl">center_focus_weak</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white">Camera Quick Scan & QR Reorder</h3>
+              <span className="text-[9px] font-extrabold bg-[#8e004b] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Instant Feature
+              </span>
+            </div>
+            <p className="text-xs text-stone-300 mt-0.5">
+              Point your phone camera at salon bottle QR tags to check live stock status, batch expiry, or reorder instantly.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsQuickScanOpen(true)}
+          className="bg-white hover:bg-[#FDE7F3] text-[#8e004b] font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 shadow-sm active:scale-98"
+        >
+          <span className="material-symbols-outlined text-base">qr_code_scanner</span>
+          <span>Open Camera Scanner</span>
+        </button>
+      </div>
+
+      {/* Smart Stock Reorder & 80% Usage Cycle Alert Widget */}
+      <SmartReorderWidget
+        suggestions={reorderSuggestions}
+        onAddToCart={onAddToCart}
+        onSelectProduct={onSelectProduct}
+        onExploreShop={onExploreShop}
+      />
 
       {/* Nexora Rewards, Loyalty Tiers, and Dynamic Discounts Section */}
       <NexoraRewardsSection user={user} orders={orders} />
@@ -985,6 +1036,15 @@ export function ProfileScreen({
           existingRating={orderRatings[selectedRatingOrder.id]}
           onClose={() => setSelectedRatingOrder(null)}
           onSubmitRating={handleSaveRating}
+          onSelectProduct={onSelectProduct}
+        />
+      )}
+
+      {/* Quick Scan QR Code Camera Modal */}
+      {isQuickScanOpen && (
+        <QuickScanModal
+          onClose={() => setIsQuickScanOpen(false)}
+          onAddToCart={onAddToCart}
           onSelectProduct={onSelectProduct}
         />
       )}

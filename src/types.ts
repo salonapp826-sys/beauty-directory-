@@ -4,7 +4,21 @@ export interface Product {
   brand: string;
   distributorId: string;
   distributorName: string;
-  category: 'Skincare' | 'Haircare' | 'Makeup' | 'Tools' | 'Furniture' | 'Fragrance';
+  category:
+    | 'Skincare'
+    | 'Haircare'
+    | 'Makeup'
+    | 'Tools'
+    | 'Furniture'
+    | 'Fragrance'
+    | 'Nails'
+    | 'Tattoo Studio'
+    | 'Spa'
+    | 'Massage'
+    | 'Salon Equipment'
+    | 'Hair Color'
+    | 'Professional Beauty Products'
+    | (string & {});
   price: number;
   originalPrice?: number;
   discountBadge?: string;
@@ -45,6 +59,27 @@ export interface Distributor {
   logo: string;
   featured: boolean;
   description: string;
+}
+
+export interface DistributorReel {
+  id: string;
+  distributorId: string;
+  distributor: string;
+  title: string;
+  description?: string;
+  thumbnail: string;
+  videoUrl?: string;
+  views: string;
+  viewsCount: number;
+  likes: string;
+  likesCount: number;
+  duration: string;
+  category?: string;
+  reelTag?: string;
+  productTag?: string;
+  createdAt: string;
+  popularityScore: number;
+  isFeatured?: boolean;
 }
 
 export interface CartItem {
@@ -110,5 +145,20 @@ export interface Order {
   statusTimeline?: OrderTimelineStep[];
 }
 
-export type ActiveTab = 'home' | 'directory' | 'shop' | 'profile';
+export type ActiveTab = 'home' | 'directory' | 'shop' | 'profile' | 'booking';
 export type AppScreen = 'splash' | 'auth' | 'app';
+
+export interface ReorderSuggestion {
+  id: string;
+  product: Product;
+  orderId: string;
+  distributorName: string;
+  purchaseDate: string;
+  purchasedQty: number;
+  estimatedCycleDays: number;
+  daysElapsed: number;
+  usagePercent: number;
+  estimatedDaysRemaining: number;
+  suggestedReorderQty: number;
+  status: '80% Threshold Reached' | 'Critical Depletion' | 'Sufficient';
+}

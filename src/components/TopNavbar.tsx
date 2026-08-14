@@ -9,6 +9,7 @@ interface TopNavbarProps {
   onOpenCart: () => void;
   wishlistCount?: number;
   onOpenWishlist?: () => void;
+  reorderAlertCount?: number;
   user: User | null;
   onLogout: () => void;
   onOpenAuth: () => void;
@@ -24,6 +25,7 @@ export function TopNavbar({
   onOpenCart,
   wishlistCount = 0,
   onOpenWishlist,
+  reorderAlertCount = 3,
   user,
   onLogout,
   onOpenAuth,
@@ -87,41 +89,23 @@ export function TopNavbar({
             <button
               id="desktop-nav-profile"
               onClick={() => setActiveTab('profile')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-1.5 ${
                 activeTab === 'profile'
                   ? 'text-[#8e004b] bg-[#FDE7F3]'
                   : 'text-[#594047] hover:text-[#8e004b] hover:bg-[#F0EDEC]'
               }`}
             >
-              Salon Dashboard
+              <span>Salon Dashboard</span>
+              {reorderAlertCount > 0 && (
+                <span className="inline-flex items-center justify-center bg-[#8e004b] text-white text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse shadow-2xs">
+                  {reorderAlertCount} Reorder
+                </span>
+              )}
             </button>
           </nav>
         </div>
 
-        {/* Search Bar (Desktop) */}
-        <div className="hidden lg:flex flex-1 max-w-md mx-6">
-          <div className="relative w-full">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8c7077] text-xl pointer-events-none">
-              search
-            </span>
-            <input
-              id="top-search-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#F0EDEC] hover:bg-[#ece7e7] focus:bg-white border border-transparent focus:border-[#8e004b] px-10 py-2 rounded-full transition-all focus:outline-none text-sm text-[#1c1b1b] placeholder:text-[#594047]"
-              placeholder="Product, Brand या Distributor खोजें..."
-              type="text"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#594047] hover:text-[#8e004b]"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            )}
-          </div>
-        </div>
+
 
         {/* Right Actions */}
         <div className="flex items-center gap-3 text-[#8e004b]">

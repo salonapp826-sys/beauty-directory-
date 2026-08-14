@@ -41,59 +41,11 @@ export function PromotionsBannerSection({
 
   const PROMOTION_SLIDES: PromotionSlide[] = [
     {
-      id: 'promo-monsoon',
-      tag: 'SEASONAL MEGA FEST',
-      badgeColor: 'bg-emerald-600 text-white',
-      title: 'Monsoon Salon Rejuvenation & Spa Deals',
-      subtitle: 'Stock up on hydrating keratin therapies, argan elixirs, and scalp detox kits with direct wholesale rebates.',
-      highlightText: 'Flat 30% OFF on Case-Packs + Free Dispatch',
-      promoCode: 'MONSOON30',
-      discountValue: '30% OFF',
-      category: 'Haircare',
-      validUntil: 'Ends in 2 days',
-      gradientBg: 'from-[#2b0819] via-[#4d0c2e] to-[#8e004b]',
-      accentColor: '#FDE7F3',
-      borderColor: 'border-pink-900/40',
-      featuredProductId: 'prod-4', // Moroccan Argan Luxury Scalp Elixir
-    },
-    {
-      id: 'promo-skincare',
-      tag: 'DIRECT DISTRIBUTOR FLASH SALE',
-      badgeColor: 'bg-amber-500 text-black',
-      title: 'Clinical Peptide & Radiant Serum Consignments',
-      subtitle: 'Maximized 42% salon retail margin on high-concentration 10% Niacinamide glass-glow facial formulations.',
-      highlightText: 'Extra ₹1,500 ITC Rebate on Orders > ₹20,000',
-      promoCode: 'AURA1500',
-      discountValue: '₹1,500 OFF',
-      category: 'Skincare',
-      validUntil: 'Limited Batch Allocation',
-      gradientBg: 'from-[#1a1423] via-[#3d1933] to-[#701a4e]',
-      accentColor: '#FFDFBA',
-      borderColor: 'border-amber-900/40',
-      featuredProductId: 'prod-1', // Aura Serum - Radiance Elixir
-    },
-    {
-      id: 'promo-tools',
-      tag: 'EQUIPMENT UPGRADE EVENT',
-      badgeColor: 'bg-blue-600 text-white',
-      title: 'Pro Styler Ionic & Titanium Studio Tools',
-      subtitle: 'Heavy-duty 235°C floating plates engineered for non-stop salon keratin sealing. Includes 2-year warranty.',
-      highlightText: 'Wholesale Special: ₹1,300 OFF Per Unit',
-      promoCode: 'TOOLFEST35',
-      discountValue: '25% OFF',
-      category: 'Tools',
-      validUntil: 'Valid this week',
-      gradientBg: 'from-[#0b1b3d] via-[#12285a] to-[#8e004b]',
-      accentColor: '#BAE6FD',
-      borderColor: 'border-blue-900/40',
-      featuredProductId: 'prod-2', // Pro Styler Ionic Ceramic Straightener
-    },
-    {
       id: 'promo-bridal',
       tag: 'BRIDAL SEASON PRE-BOOKING',
       badgeColor: 'bg-rose-600 text-white',
-      title: 'Ultra-HD Pigment & Studio Makeup Palettes',
-      subtitle: 'Waterproof 16-hr sweatproof formulations crafted for Indian bridal skin tones with 45% salon profit margin.',
+      title: 'Bridal Makeup & Heritage HD Glow Bundles',
+      subtitle: 'Stock up on 16-hr sweatproof HD foundation palettes, studio fixers, and bridal vanity kits with 45% salon profit margin.',
       highlightText: 'Buy 5+ Palettes, Get Free Vanity Master Light',
       promoCode: 'BRIDALGLOW20',
       discountValue: '20% OFF',
@@ -104,14 +56,78 @@ export function PromotionsBannerSection({
       borderColor: 'border-rose-900/40',
       featuredProductId: 'prod-3', // Bridal Heritage Ultra-HD Palette
     },
+    {
+      id: 'promo-haircare',
+      tag: 'KERATIN & HAIR CARE FEST',
+      badgeColor: 'bg-emerald-600 text-white',
+      title: 'Monsoon Hair Care & Keratin Therapy Deals',
+      subtitle: 'Stock up on hydrating keratin therapies, argan elixirs, and scalp detox kits with direct wholesale rebates.',
+      highlightText: 'Flat 30% OFF on Case-Packs + Free Dispatch',
+      promoCode: 'KERATIN30',
+      discountValue: '30% OFF',
+      category: 'Haircare',
+      validUntil: 'Ends in 2 days',
+      gradientBg: 'from-[#2b0819] via-[#4d0c2e] to-[#8e004b]',
+      accentColor: '#FDE7F3',
+      borderColor: 'border-pink-900/40',
+      featuredProductId: 'prod-4', // Moroccan Argan Luxury Scalp Elixir
+    },
+    {
+      id: 'promo-skincare',
+      tag: 'FACIAL & SKINCARE FLASH SALE',
+      badgeColor: 'bg-amber-500 text-black',
+      title: 'Clinical Peptide & Hydra Facial Consignments',
+      subtitle: 'Maximized 65% salon retail margin on high-concentration peptide ampoules & glass-glow facial kits.',
+      highlightText: 'Extra ₹1,500 ITC Rebate on Orders > ₹20,000',
+      promoCode: 'FACIAL1500',
+      discountValue: '₹1,500 OFF',
+      category: 'Skincare',
+      validUntil: 'Limited Batch Allocation',
+      gradientBg: 'from-[#1a1423] via-[#3d1933] to-[#701a4e]',
+      accentColor: '#FFDFBA',
+      borderColor: 'border-amber-900/40',
+      featuredProductId: 'prod-5', // Hydra-Oxygen Facial Treatment Kit
+    },
+    {
+      id: 'promo-spa',
+      tag: 'SPA & WELLNESS EXPOSURE',
+      badgeColor: 'bg-teal-600 text-white',
+      title: 'Luxury Hot Stone & Aroma Therapy Spa Sets',
+      subtitle: 'Professional volcanic basalt heaters and 5L cold-pressed organic massage oil canisters with 45% margin.',
+      highlightText: 'Special Spa Bundle: Flat 25% OFF on Warmer Kits',
+      promoCode: 'SPARELAX25',
+      discountValue: '25% OFF',
+      category: 'Spa',
+      validUntil: 'Valid this week',
+      gradientBg: 'from-[#0a2328] via-[#12424a] to-[#8e004b]',
+      accentColor: '#CCFBF1',
+      borderColor: 'border-teal-900/40',
+      featuredProductId: 'prod-9', // Luxury Basalt Hot Stone Spa Heater Set
+    },
+    {
+      id: 'promo-equipment',
+      tag: 'SALON EQUIPMENT UPGRADE',
+      badgeColor: 'bg-blue-600 text-white',
+      title: 'Ozone Facial Steamers & Pro Ionic Tools',
+      subtitle: 'Heavy-duty dual-arm steamers, rolling steel carts, and 235°C titanium stylers with 2-year warranty.',
+      highlightText: 'Wholesale Special: Flat ₹2,000 OFF on Equipment',
+      promoCode: 'EQUIPMENT2000',
+      discountValue: '₹2,000 OFF',
+      category: 'Salon Equipment',
+      validUntil: 'Limited Equipment Stock',
+      gradientBg: 'from-[#0b1b3d] via-[#12285a] to-[#8e004b]',
+      accentColor: '#BAE6FD',
+      borderColor: 'border-blue-900/40',
+      featuredProductId: 'prod-11', // High-Pressure Ozone Facial Steamer & Trolley
+    },
   ];
 
-  // Auto rotate carousel every 5 seconds unless paused
+  // Auto rotate carousel every 4 seconds unless paused
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
       setCurrentSlideIndex((prev) => (prev + 1) % PROMOTION_SLIDES.length);
-    }, 5500);
+    }, 4000);
     return () => clearInterval(interval);
   }, [isPaused, PROMOTION_SLIDES.length]);
 

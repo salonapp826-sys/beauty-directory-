@@ -7,11 +7,13 @@ import {
   Order,
   ActiveTab,
   AppScreen,
+  DistributorReel,
 } from './types';
 import {
   INITIAL_USER,
   PRODUCTS_DATA,
   INITIAL_ORDERS,
+  INITIAL_REELS,
 } from './data/mockData';
 import { SplashScreen } from './components/SplashScreen';
 import { AuthScreen } from './components/AuthScreen';
@@ -21,17 +23,24 @@ import { HomeScreen } from './components/HomeScreen';
 import { DirectoryScreen } from './components/DirectoryScreen';
 import { ShopScreen } from './components/ShopScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { BookingScreen } from './components/BookingScreen';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { CartDrawer } from './components/CartDrawer';
 import { InvoiceModal } from './components/InvoiceModal';
 import { QuoteModal } from './components/QuoteModal';
 import { TrackShipmentModal } from './components/TrackShipmentModal';
 import { WishlistDrawer } from './components/WishlistDrawer';
+import { DistributorProfileModal } from './components/DistributorProfileModal';
+import { getSmartReorderSuggestions } from './utils/reorderUtils';
 
 export default function App() {
   // Screen management
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('app');
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
+
+  // Directory initial filters passed from Home Screen
+  const [directoryCityFilter, setDirectoryCityFilter] = useState<string>('All');
+  const [directoryCategoryFilter, setDirectoryCategoryFilter] = useState<string>('All');
 
   // User state
   const [user, setUser] = useState<User | null>(INITIAL_USER);
@@ -67,10 +76,72 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedDistributorForQuote, setSelectedDistributorForQuote] = useState<Distributor | null>(null);
   const [selectedDistributorFilter, setSelectedDistributorFilter] = useState<Distributor | null>(null);
+  const [selectedDistributorProfile, setSelectedDistributorProfile] = useState<Distributor | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+
+  // Helper to sort reels: Featured/Pinned reels first, then by popularity score
+  const sortReelsList = (list: DistributorReel[]) => {
+    return [...list].sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return b.popularityScore - a.popularityScore;
+    });
+  };
+
+  // Reels & Videos state sorted by featured status & popularity score
+  const [reels, setReels] = useState<DistributorReel[]>(() => sortReelsList(INITIAL_REELS));
+
+  const handleUploadReel = (newReel: DistributorReel) => {
+    setReels((prev) => sortReelsList([newReel, ...prev]));
+  };
+
+  const handleEditReel = (updatedReel: DistributorReel) => {
+    setReels((prev) => sortReelsList(prev.map((r) => (r.id === updatedReel.id ? updatedReel : r))));
+  };
+
+  const handleDeleteReel = (reelId: string) => {
+    setReels((prev) => prev.filter((r) => r.id !== reelId));
+  };
+
+  const handleToggleFeatureReel = (reelId: string) => {
+    setReels((prev) =>
+      sortReelsList(
+        prev.map((r) => {
+          if (r.id === reelId) {
+            return { ...r, isFeatured: !r.isFeatured };
+          }
+          return r;
+        })
+      )
+    );
+  };
+
+  const handleLikeReel = (reelId: string) => {
+    setReels((prev) => {
+      const updated = prev.map((r) => {
+        if (r.id === reelId) {
+          const newLikesCount = r.likesCount + 1;
+          const newScore = r.viewsCount + newLikesCount * 5 + (r.id.startsWith('reel-user') ? 25000 : 0);
+          const likesStr = newLikesCount >= 1000 ? `${(newLikesCount / 1000).toFixed(1)}K` : `${newLikesCount}`;
+          return {
+            ...r,
+            likesCount: newLikesCount,
+            likes: likesStr,
+            popularityScore: newScore,
+          };
+        }
+        return r;
+      });
+      return sortReelsList(updated);
+    });
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Reorder alerts count derived from purchase history
+  const reorderSuggestions = getSmartReorderSuggestions(orders);
+  const reorderAlertCount = reorderSuggestions.length;
 
   // Cart total count
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
@@ -301,6 +372,7 @@ export default function App() {
             onOpenCart={() => setIsCartOpen(true)}
             wishlistCount={wishlistIds.length}
             onOpenWishlist={() => setIsWishlistOpen(true)}
+            reorderAlertCount={reorderAlertCount}
             user={user}
             onLogout={() => setUser(null)}
             onOpenAuth={() => setCurrentScreen('auth')}
@@ -322,6 +394,19 @@ export default function App() {
                 setSearchQuery={setSearchQuery}
                 wishlistIds={wishlistIds}
                 onToggleWishlist={handleToggleWishlist}
+                reels={reels}
+                onLikeReel={handleLikeReel}
+                onOpenDistributorProfile={(d) => setSelectedDistributorProfile(d)}
+                onSelectDirectoryCity={(city) => {
+                  setDirectoryCityFilter(city);
+                  setActiveTab('directory');
+                }}
+                onSelectDirectoryCategory={(cat) => {
+                  setDirectoryCategoryFilter(cat);
+                  setActiveTab('directory');
+                }}
+                onOpenCart={() => setIsCartOpen(true)}
+                onOpenWishlist={() => setIsWishlistOpen(true)}
               />
             )}
 
@@ -331,6 +416,13 @@ export default function App() {
                 onRequestQuote={(d) => setSelectedDistributorForQuote(d)}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
+                onOpenDistributorProfile={(d) => setSelectedDistributorProfile(d)}
+                initialCity={directoryCityFilter}
+                initialCategory={directoryCategoryFilter}
+                onClearFilters={() => {
+                  setDirectoryCityFilter('All');
+                  setDirectoryCategoryFilter('All');
+                }}
               />
             )}
 
@@ -340,6 +432,7 @@ export default function App() {
                 onAddToCart={handleAddToCart}
                 selectedCategoryFilter={categoryFilter}
                 selectedDistributorFilter={selectedDistributorFilter}
+                onSelectDistributor={handleSelectDistributor}
                 onClearFilters={() => {
                   setCategoryFilter(null);
                   setSelectedDistributorFilter(null);
@@ -371,10 +464,26 @@ export default function App() {
                 }}
               />
             )}
+
+            {activeTab === 'booking' && (
+              <BookingScreen
+                setActiveTab={setActiveTab}
+                onBackToHome={() => setActiveTab('home')}
+              />
+            )}
           </main>
 
           {/* Bottom Fixed Navigation on Mobile */}
-          <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+          <BottomNav
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            reorderAlertCount={reorderAlertCount}
+            onSearchClick={() => {
+              setCategoryFilter(null);
+              setSelectedDistributorFilter(null);
+              setActiveTab('shop');
+            }}
+          />
         </div>
       )}
 
@@ -411,6 +520,7 @@ export default function App() {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
+        onSelectProduct={(p) => setSelectedProduct(p)}
         onViewDistributor={(distId) => {
           setSelectedProduct(null);
           setActiveTab('directory');
@@ -441,6 +551,24 @@ export default function App() {
           onClose={() => setSelectedTrackingOrder(null)}
           onViewInvoice={(order) => setSelectedInvoiceOrder(order)}
           onReorder={handleReorder}
+        />
+      )}
+
+      {/* Distributor Profile Modal & Video Reel Uploader */}
+      {selectedDistributorProfile && (
+        <DistributorProfileModal
+          distributor={selectedDistributorProfile}
+          products={PRODUCTS_DATA}
+          reels={reels}
+          onUploadReel={handleUploadReel}
+          onEditReel={handleEditReel}
+          onDeleteReel={handleDeleteReel}
+          onToggleFeatureReel={handleToggleFeatureReel}
+          onLikeReel={handleLikeReel}
+          onAddToCart={handleAddToCart}
+          onSelectProduct={(p) => setSelectedProduct(p)}
+          onRequestQuote={(d) => setSelectedDistributorForQuote(d)}
+          onClose={() => setSelectedDistributorProfile(null)}
         />
       )}
     </div>
