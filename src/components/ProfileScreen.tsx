@@ -8,6 +8,7 @@ import { RateOrderModal, OrderRatingData } from './RateOrderModal';
 import { NexoraRewardsSection } from './NexoraRewardsSection';
 import { BranchSwitcher } from './BranchSwitcher';
 import { OrderHistoryEmptyState } from './EmptyState';
+import { QuickSupportCard } from './QuickSupportCard';
 import { exportOrdersToCSV, exportOrdersToPDF } from '../utils/exportUtils';
 
 interface ProfileScreenProps {
@@ -412,6 +413,9 @@ export function ProfileScreen({
         onDeleteAddress={handleDeleteAddress}
         onSetDefaultAddress={handleSetDefaultAddress}
       />
+
+      {/* Dedicated Executive Account Support Card & FAB */}
+      <QuickSupportCard userPhone={user.phone} salonName={user.salonName} />
 
       {/* Order History */}
       <div id="order-history-section" className="bg-white rounded-2xl border border-[#E8E8E8] p-6 shadow-xs space-y-6">
