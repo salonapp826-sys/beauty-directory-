@@ -1,6 +1,46 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { Distributor, Product, DistributorReel } from '../types';
 
+interface MockReview {
+  salonName: string;
+  stars: number;
+  comment: string;
+}
+
+function getMockReviewsForDistributor(id: string): MockReview[] {
+  switch (id) {
+    case 'dist-1':
+      return [
+        { salonName: 'Elite Skin Care Studio, Mumbai', stars: 5, comment: 'Aura Botanical Serums are absolute bestsellers in our facials. Claimed 18% GST input credit smoothly!' },
+        { salonName: 'Grace & Glow Unisex Salon, Pune', stars: 5, comment: 'Extremely prompt delivery within 24 hours. Genuine batch products, highly recommended.' },
+        { salonName: 'Vibe Unisex Spa, Bengaluru', stars: 5, comment: 'Authentic organic luxury items. The margin percent is really high and customers love the fragrance.' }
+      ];
+    case 'dist-2':
+      return [
+        { salonName: 'DermaClinique Spa, Delhi NCR', stars: 5, comment: 'Ordered 3 styling chairs and pro hair dryers. Excellent CP build quality and safe packaging.' },
+        { salonName: 'Scissors & Spice Salon, Gurgaon', stars: 4, comment: 'Dyson B2B tools are genuine and came with official 2-year warranty card. Very reliable salon equipment supplier.' },
+        { salonName: 'Luxe Hair & Nail Lounge, Noida', stars: 5, comment: 'Apex Spa tables are comfortable, client feedback is top notch.' }
+      ];
+    case 'dist-3':
+      return [
+        { salonName: 'Aura Luxe Beauty Studio, Bangalore', stars: 5, comment: 'Excellent pigment palettes for bridal makeup. Kryolan and MAC supplies are 100% authentic.' },
+        { salonName: 'Pink Petals Bridal Salon, Chennai', stars: 5, comment: 'Bridal client makeup glows. Regular buyer here, volume bulk tier prices are incredibly economical.' },
+        { salonName: 'Bella Beauty Parlour, Hyderabad', stars: 5, comment: 'ColorCraft HD foundations are perfect for Indian skin tones. Always in stock!' }
+      ];
+    case 'dist-4':
+      return [
+        { salonName: 'Royal Hair Masterclass, Hyderabad', stars: 5, comment: 'Best wholesale source for original Olaplex and Kerastase backbar sets. Genuine salon seal.' },
+        { salonName: 'Mirrors Salon & Spa, Secunderabad', stars: 4, comment: 'Moroccan Royal hair oils did wonders for our bridal hair spa sessions. Fast delivery!' },
+        { salonName: 'Trendz Salon, Vijayawada', stars: 5, comment: 'Reliable distribution, prompt customer support on whatsapp.' }
+      ];
+    default:
+      return [
+        { salonName: 'Premium Salon Hub, India', stars: 5, comment: 'High quality professional beauty products. GST Invoice issued quickly.' },
+        { salonName: 'Metro Style Lounge, Mumbai', stars: 5, comment: 'Extremely professional distributor service and transparent bulk discounts.' }
+      ];
+  }
+}
+
 interface DistributorProfileModalProps {
   distributor: Distributor;
   products: Product[];
@@ -517,6 +557,86 @@ export function DistributorProfileModal({
           {/* TAB 1: PRODUCT CATALOG */}
           {activeTab === 'catalog' && (
             <div className="space-y-4">
+              {/* B2B Overview and Verified Reviews Block */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 bg-[#FCF9F8] border border-[#e5d5da] rounded-2xl p-5 mb-2 shadow-2xs">
+                <div className="md:col-span-7 space-y-4">
+                  <div>
+                    <h3 className="text-[11px] font-black text-stone-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs text-[#8e004b]">info</span>
+                      <span>About {distributor.name} (विवरण)</span>
+                    </h3>
+                    <p className="text-xs text-[#594047] leading-relaxed font-medium">
+                      {distributor.description || 'Verified manufacturer-direct distributor supplying high-quality, authentic professional beauty products and salon items across major Indian cities.'}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#E8E8E8]">
+                    <div>
+                      <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs text-[#8e004b]">category</span>
+                        <span>Categories (श्रेणियां)</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-1">
+                        {distributor.categories && distributor.categories.length > 0 ? (
+                          distributor.categories.map((c) => (
+                            <span key={c} className="text-[10px] bg-[#FFF8FA] text-[#8e004b] border border-[#FDE7F3] font-bold px-2 py-0.5 rounded-md">
+                              {c}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-stone-400">Professional Salon Supplies</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs text-[#8e004b]">contact_page</span>
+                        <span>Contact & Address</span>
+                      </h4>
+                      <p className="text-xs text-[#1c1b1b] font-medium leading-normal space-y-1">
+                        <span className="block">📞 <strong>Phone:</strong> {distributor.phone}</span>
+                        <span className="block">✉️ <strong>Email:</strong> {distributor.email}</span>
+                        <span className="block text-stone-600">📍 <strong>HQ:</strong> {distributor.address}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-5 border-t md:border-t-0 md:border-l border-[#E8E8E8] pt-4 md:pt-0 md:pl-5 space-y-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs text-amber-500">rate_review</span>
+                        <span>Verified Reviews ({distributor.reviewsCount || 0})</span>
+                      </h3>
+                      <div className="flex items-center gap-0.5 text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        <span className="material-symbols-outlined text-[11px] leading-none">star</span>
+                        <span className="text-[11px] font-black text-[#1c1b1b]">{distributor.rating}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                      {getMockReviewsForDistributor(distributor.id).map((r, i) => (
+                        <div key={i} className="bg-white p-2.5 rounded-xl border border-[#E8E8E8] space-y-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="font-extrabold text-[#1c1b1b]">{r.salonName}</span>
+                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-1.5 py-0.2 rounded-md font-bold scale-90 origin-right">Verified Buyer</span>
+                          </div>
+                          <div className="flex items-center gap-0.5 text-amber-500">
+                            {Array.from({ length: 5 }).map((_, starIdx) => (
+                              <span key={starIdx} className="material-symbols-outlined text-[10px] leading-none">
+                                {starIdx < r.stars ? 'star' : 'star_border'}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-[#594047] italic">"{r.comment}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-sm font-bold text-[#1c1b1b]">Wholesale Catalog Products</h2>

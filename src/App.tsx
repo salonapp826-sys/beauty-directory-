@@ -32,6 +32,7 @@ import { TrackShipmentModal } from './components/TrackShipmentModal';
 import { WishlistDrawer } from './components/WishlistDrawer';
 import { DistributorProfileModal } from './components/DistributorProfileModal';
 import { getSmartReorderSuggestions } from './utils/reorderUtils';
+import { NexoraSupport } from './components/NexoraSupport';
 
 export default function App() {
   // Screen management
@@ -41,6 +42,8 @@ export default function App() {
   // Directory initial filters passed from Home Screen
   const [directoryCityFilter, setDirectoryCityFilter] = useState<string>('All');
   const [directoryCategoryFilter, setDirectoryCategoryFilter] = useState<string>('All');
+  const [directoryVerifiedOnly, setDirectoryVerifiedOnly] = useState<boolean>(false);
+  const [directoryMinRating, setDirectoryMinRating] = useState<number>(0);
 
   // User state
   const [user, setUser] = useState<User | null>(INITIAL_USER);
@@ -419,9 +422,17 @@ export default function App() {
                 onOpenDistributorProfile={(d) => setSelectedDistributorProfile(d)}
                 initialCity={directoryCityFilter}
                 initialCategory={directoryCategoryFilter}
+                setInitialCity={setDirectoryCityFilter}
+                setInitialCategory={setDirectoryCategoryFilter}
+                verifiedOnly={directoryVerifiedOnly}
+                setVerifiedOnly={setDirectoryVerifiedOnly}
+                minRating={directoryMinRating}
+                setMinRating={setDirectoryMinRating}
                 onClearFilters={() => {
                   setDirectoryCityFilter('All');
                   setDirectoryCategoryFilter('All');
+                  setDirectoryVerifiedOnly(false);
+                  setDirectoryMinRating(0);
                 }}
               />
             )}
@@ -441,6 +452,11 @@ export default function App() {
                 setSearchQuery={setSearchQuery}
                 wishlistIds={wishlistIds}
                 onToggleWishlist={handleToggleWishlist}
+                onOpenDistributorProfile={(d) => setSelectedDistributorProfile(d)}
+                onBackToDirectory={() => {
+                  setSelectedDistributorFilter(null);
+                  setActiveTab('directory');
+                }}
               />
             )}
 
@@ -571,6 +587,9 @@ export default function App() {
           onClose={() => setSelectedDistributorProfile(null)}
         />
       )}
+
+      {/* Persistent Nexora WhatsApp/Live Support desk */}
+      <NexoraSupport />
     </div>
   );
 }

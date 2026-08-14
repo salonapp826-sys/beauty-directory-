@@ -14,6 +14,8 @@ interface ShopScreenProps {
   setSearchQuery: (query: string) => void;
   wishlistIds?: string[];
   onToggleWishlist?: (product: Product) => void;
+  onOpenDistributorProfile?: (distributor: Distributor) => void;
+  onBackToDirectory?: () => void;
 }
 
 export function ShopScreen({
@@ -27,6 +29,8 @@ export function ShopScreen({
   setSearchQuery,
   wishlistIds = [],
   onToggleWishlist,
+  onOpenDistributorProfile,
+  onBackToDirectory,
 }: ShopScreenProps) {
   const [activeCategory, setActiveCategory] = useState<string>(
     selectedCategoryFilter || 'All'
@@ -405,6 +409,58 @@ export function ShopScreen({
 
   return (
     <div className="w-full max-w-[1440px] mx-auto px-4 md:px-10 py-6">
+      {selectedDistributorFilter && (
+        <div className="bg-white rounded-2xl border border-[#E8E8E8] p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <img
+              src={selectedDistributorFilter.logo}
+              alt={selectedDistributorFilter.name}
+              className="w-12 h-12 rounded-xl object-cover border border-stone-200"
+            />
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenDistributorProfile) {
+                    onOpenDistributorProfile(selectedDistributorFilter);
+                  }
+                }}
+                className="font-bold text-base text-[#1c1b1b] hover:text-[#8e004b] text-left transition-colors flex items-center gap-1 group/title"
+              >
+                <span>{selectedDistributorFilter.name}</span>
+                <span className="material-symbols-outlined text-sm text-[#8e004b] group-hover/title:translate-x-0.5 transition-transform">open_in_new</span>
+              </button>
+              <p className="text-xs text-[#594047] flex items-center gap-1 mt-0.5">
+                <span className="material-symbols-outlined text-xs text-[#8e004b]">location_on</span>
+                <span>{selectedDistributorFilter.location} • ⭐ {selectedDistributorFilter.rating} ({selectedDistributorFilter.reviewsCount} reviews)</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {onBackToDirectory && (
+              <button
+                type="button"
+                onClick={onBackToDirectory}
+                className="flex-1 sm:flex-initial px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 border border-stone-200"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Back to Directory</span>
+              </button>
+            )}
+            {onOpenDistributorProfile && (
+              <button
+                type="button"
+                onClick={() => onOpenDistributorProfile(selectedDistributorFilter)}
+                className="flex-1 sm:flex-initial px-4 py-2 bg-[#8e004b] hover:bg-[#a00055] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm">store</span>
+                <span>View Profile</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
@@ -639,9 +695,22 @@ export function ShopScreen({
                   {product.name}
                 </h3>
                 <p className="text-xs text-[#594047] truncate">{product.brand}</p>
-                <p className="text-[11px] text-[#0150d6] font-medium truncate mt-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const matchedDist = DISTRIBUTORS_DATA.find(
+                      (d) => d.id === product.distributorId || d.name === product.distributorName
+                    );
+                    if (matchedDist && onOpenDistributorProfile) {
+                      onOpenDistributorProfile(matchedDist);
+                    }
+                  }}
+                  className="text-[11px] text-[#0150d6] hover:text-[#8e004b] hover:underline font-bold truncate mt-1 text-left block w-full focus:outline-none"
+                  title={`View ${product.distributorName} Profile`}
+                >
                   By {product.distributorName}
-                </p>
+                </button>
 
                 {/* Bulk Tiers indicator */}
                 <div className="bg-[#F0EDEC] p-2 rounded-lg mt-2 text-[10px] text-[#594047] flex justify-between items-center">

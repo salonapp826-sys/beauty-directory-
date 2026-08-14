@@ -10,6 +10,12 @@ interface DirectoryScreenProps {
   onOpenDistributorProfile?: (distributor: Distributor) => void;
   initialCity?: string;
   initialCategory?: string;
+  setInitialCity?: (city: string) => void;
+  setInitialCategory?: (category: string) => void;
+  verifiedOnly?: boolean;
+  setVerifiedOnly?: (val: boolean) => void;
+  minRating?: number;
+  setMinRating?: (val: number) => void;
   onClearFilters?: () => void;
 }
 
@@ -21,22 +27,44 @@ export function DirectoryScreen({
   onOpenDistributorProfile,
   initialCity = 'All',
   initialCategory = 'All',
+  setInitialCity,
+  setInitialCategory,
+  verifiedOnly: propVerifiedOnly,
+  setVerifiedOnly: propSetVerifiedOnly,
+  minRating: propMinRating,
+  setMinRating: propSetMinRating,
   onClearFilters,
 }: DirectoryScreenProps) {
-  const [selectedCity, setSelectedCity] = useState<string>(initialCity);
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
-  const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
-  const [minRating, setMinRating] = useState<number>(0);
+  const [localCity, setLocalCity] = useState<string>(initialCity);
+  const [localCategory, setLocalCategory] = useState<string>(initialCategory);
+  const [localVerifiedOnly, setLocalVerifiedOnly] = useState<boolean>(false);
+  const [localMinRating, setLocalMinRating] = useState<number>(0);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
+
+  const selectedCity = setInitialCity ? initialCity : localCity;
+  const setSelectedCity = setInitialCity || setLocalCity;
+
+  const selectedCategory = setInitialCategory ? initialCategory : localCategory;
+  const setSelectedCategory = setInitialCategory || setLocalCategory;
+
+  const verifiedOnly = propSetVerifiedOnly !== undefined ? propVerifiedOnly : localVerifiedOnly;
+  const setVerifiedOnly = propSetVerifiedOnly || setLocalVerifiedOnly;
+
+  const minRating = propMinRating !== undefined ? propMinRating : localMinRating;
+  const setMinRating = propSetMinRating || setLocalMinRating;
 
   // Sync props to state if modified
   useEffect(() => {
-    setSelectedCity(initialCity);
-  }, [initialCity]);
+    if (!setInitialCity) {
+      setLocalCity(initialCity);
+    }
+  }, [initialCity, setInitialCity]);
 
   useEffect(() => {
-    setSelectedCategory(initialCategory);
-  }, [initialCategory]);
+    if (!setInitialCategory) {
+      setLocalCategory(initialCategory);
+    }
+  }, [initialCategory, setInitialCategory]);
 
   const cities = ['Delhi', 'Mumbai', 'Jaipur', 'Ahmedabad', 'Bengaluru', 'Kolkata', 'Hyderabad', 'Pune'];
   const categories = [
@@ -523,27 +551,27 @@ export function DirectoryScreen({
             key={dist.id}
             className="bg-white rounded-2xl border border-[#E8E8E8] hover:border-[#8e004b]/60 transition-all hover:shadow-lg p-5 flex flex-col justify-between"
           >
-            <div>
+            <div
+              onClick={() => {
+                if (onOpenDistributorProfile) {
+                  onOpenDistributorProfile(dist);
+                } else {
+                  onSelectDistributor(dist);
+                }
+              }}
+              className="cursor-pointer group/card"
+              title={`Click to view ${dist.name} Profile`}
+            >
               {/* Header */}
               <div className="flex items-start justify-between gap-3 mb-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onOpenDistributorProfile) {
-                      onOpenDistributorProfile(dist);
-                    } else {
-                      onSelectDistributor(dist);
-                    }
-                  }}
-                  className="flex items-center gap-3 text-left group/logo active:scale-98 transition-transform"
-                >
+                <div className="flex items-center gap-3 text-left">
                   <img
                     src={dist.logo}
                     alt={dist.name}
-                    className="w-12 h-12 rounded-xl object-cover border border-[#E8E8E8] group-hover/logo:border-[#8e004b]/40 transition-colors"
+                    className="w-12 h-12 rounded-xl object-cover border border-[#E8E8E8] group-hover/card:border-[#8e004b]/40 transition-colors bg-white shadow-xs"
                   />
                   <div>
-                    <h3 className="font-bold text-base text-[#1c1b1b] leading-tight group-hover/logo:text-[#8e004b] transition-colors">
+                    <h3 className="font-bold text-base text-[#1c1b1b] leading-tight group-hover/card:text-[#8e004b] transition-colors">
                       {dist.name}
                     </h3>
                     <p className="text-xs text-[#594047] flex items-center gap-1 mt-0.5">
@@ -551,7 +579,7 @@ export function DirectoryScreen({
                       <span>{dist.location}</span>
                     </p>
                   </div>
-                </button>
+                </div>
 
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full text-xs font-bold">
@@ -619,8 +647,8 @@ export function DirectoryScreen({
                 }}
                 className="w-full bg-[#1c1b1b] hover:bg-[#2d1b24] text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs"
               >
-                <span className="material-symbols-outlined text-sm text-[#ffcbd9]">movie</span>
-                <span>Profile, Catalog & Upload Reels</span>
+                <span className="material-symbols-outlined text-sm text-[#ffcbd9]">store</span>
+                <span>View Distributor Profile</span>
               </button>
 
               <button
@@ -651,10 +679,11 @@ export function DirectoryScreen({
               <button
                 id={`catalog-btn-${dist.id}`}
                 onClick={() => onSelectDistributor(dist)}
-                className="p-2 bg-[#F0EDEC] hover:bg-[#ece7e7] text-[#1c1b1b] rounded-lg transition-colors"
+                className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold text-xs py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
                 title="View Catalog Products"
               >
-                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                <span className="material-symbols-outlined text-sm">shopping_bag</span>
+                <span>View Products</span>
               </button>
             </div>
           </div>
