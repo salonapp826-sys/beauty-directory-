@@ -1,0 +1,6 @@
+{
+  "name": "Nexora - Luxury Salon & Beauty Platform",
+  "description": "B2B beauty products, trusted distributors, and salon business platform across India.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
