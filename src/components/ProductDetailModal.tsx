@@ -39,6 +39,11 @@ export function ProductDetailModal({
   const [quantity, setQuantity] = useState(product.minOrderQuantity || 1);
   const [added, setAdded] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  // Product Video Reel states
+  const [isPlayingProductVideo, setIsPlayingProductVideo] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const [reelLiked, setReelLiked] = useState(false);
 
   // Sync state on product change
   useEffect(() => {
@@ -263,7 +268,7 @@ export function ProductDetailModal({
         {/* Top Section: Product Overview Split */}
         <div className="flex flex-col md:flex-row border-b border-[#E8E8E8]">
           {/* Left: Product Image */}
-          <div className="w-full md:w-1/2 bg-[#fdf8f8] relative flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#E8E8E8]">
+          <div className="w-full md:w-1/2 bg-[#fdf8f8] relative flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#E8E8E8] group">
             <img
               src={product.image}
               alt={product.name}
@@ -292,6 +297,20 @@ export function ProductDetailModal({
                 </span>
               </button>
             )}
+
+            {/* Floating Watch Video Reel / Demo button */}
+            {(product.videoUrl || product.reelId || product.id === 'prod-1' || product.id === 'prod-2' || product.id === 'prod-3') && (
+              <button
+                id="product-modal-watch-video-btn"
+                type="button"
+                onClick={() => setIsPlayingProductVideo(true)}
+                className="absolute bottom-4 left-4 right-4 bg-[#8e004b]/95 hover:bg-[#8e004b] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-1.5 z-10"
+                title="Watch unboxing / application demo video reel"
+              >
+                <span className="material-symbols-outlined text-lg animate-pulse text-amber-300">play_circle</span>
+                <span>Watch Product Reel (वीडियो देखें)</span>
+              </button>
+            )}
           </div>
 
           {/* Right: Product Details & Pricing */}
@@ -310,10 +329,17 @@ export function ProductDetailModal({
               </h2>
 
               {/* Distributor line */}
-              <div className="flex items-center gap-1.5 text-xs text-[#0150d6] font-medium mb-3">
-                <span className="material-symbols-outlined text-sm">verified</span>
-                <span>Supplied by: <strong>{product.distributorName}</strong></span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onViewDistributor(product.distributorId || product.distributorName);
+                }}
+                className="flex items-center gap-1.5 text-xs text-[#0150d6] hover:text-[#013cb0] hover:underline font-bold mb-3 text-left transition-colors"
+                title={`Open ${product.distributorName} wholesale profile`}
+              >
+                <span className="material-symbols-outlined text-sm animate-pulse text-[#0150d6]">verified</span>
+                <span>Supplied by: <strong className="font-extrabold">{product.distributorName}</strong></span>
+              </button>
 
               <p className="text-xs text-[#594047] leading-relaxed mb-4">
                 {product.description}
@@ -839,6 +865,66 @@ export function ProductDetailModal({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Unboxing Video Reel Overlay */}
+        {isPlayingProductVideo && (
+          <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsPlayingProductVideo(false)}>
+            <div className="bg-stone-900 text-white rounded-3xl overflow-hidden max-w-sm w-full relative shadow-2xl border border-white/20" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setIsPlayingProductVideo(false)}
+                className="absolute top-3 right-3 z-35 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black transition-colors"
+                title="Close Player"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+              <div className="relative aspect-[9/16] bg-black">
+                {/* Autoplay Video Stream */}
+                <video
+                  src={product.videoUrl || "https://assets.mixkit.co/videos/preview/mixkit-skin-care-serum-being-applied-43187-large.mp4"}
+                  autoPlay
+                  loop
+                  muted={isVideoMuted}
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                
+                {/* Audio Control */}
+                <button
+                  onClick={() => setIsVideoMuted(!isVideoMuted)}
+                  className="absolute top-3 left-3 z-30 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black"
+                  title={isVideoMuted ? 'Unmute Audio' : 'Mute Audio'}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {isVideoMuted ? 'volume_off' : 'volume_up'}
+                  </span>
+                </button>
+
+                <div className="absolute bottom-4 inset-x-4 space-y-1.5 pointer-events-none">
+                  <span className="inline-block text-[10px] font-bold text-[#FDE7F3] bg-[#8e004b] px-2 py-0.5 rounded-md">
+                    {product.distributorName}
+                  </span>
+                  <h3 className="text-xs font-bold leading-tight">{product.name} - Demo</h3>
+                  <p className="text-[10px] text-stone-300">Autoplay • Verified Salon Tutorial</p>
+                  
+                  {/* Simulated Like & Ask Feature */}
+                  <div className="flex items-center gap-2 pt-1.5 pointer-events-auto">
+                    <button
+                      onClick={() => setReelLiked(!reelLiked)}
+                      className={`font-bold text-[10px] py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors ${
+                        reelLiked ? 'bg-pink-600 text-white animate-bounce' : 'bg-black/60 text-white hover:bg-black'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[11px] font-black">favorite</span>
+                      <span>{reelLiked ? 'Liked!' : 'Like Product Video'}</span>
+                    </button>
+                    <span className="text-[9px] text-stone-300">Hologram Batch Verified</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

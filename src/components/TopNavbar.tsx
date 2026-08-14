@@ -38,6 +38,13 @@ export function TopNavbar({
 
   return (
     <header className="sticky top-0 z-40 bg-[#fdf8f8]/95 backdrop-blur-md border-b border-[#E8E8E8] w-full transition-all">
+      {/* Mandatory Global Requirement Notification */}
+      <div className="bg-[#8e004b] text-white text-center py-1 px-3 text-[11px] font-black tracking-widest flex items-center justify-center gap-2 shadow-xs select-none">
+        <span className="material-symbols-outlined text-xs text-amber-300">warning</span>
+        <span>STITCH INDIA नहीं बनाता है</span>
+        <span className="material-symbols-outlined text-xs text-amber-300">warning</span>
+      </div>
+
       <div className="flex justify-between items-center w-full px-4 md:px-10 py-3.5 max-w-[1440px] mx-auto">
         {/* Brand */}
         <div className="flex items-center gap-6">

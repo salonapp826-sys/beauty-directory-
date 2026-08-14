@@ -36,6 +36,12 @@ export interface Product {
   }[];
   specifications: Record<string, string>;
   salonMarginPercent: number;
+  videoUrl?: string;
+  reelId?: string;
+  variants?: {
+    type: 'Shades' | 'Size/Volume' | 'Other' | string;
+    values: string[];
+  }[];
 }
 
 export interface Distributor {

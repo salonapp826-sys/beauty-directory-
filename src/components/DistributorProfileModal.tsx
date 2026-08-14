@@ -54,6 +54,7 @@ interface DistributorProfileModalProps {
   onSelectProduct: (product: Product) => void;
   onRequestQuote: (distributor: Distributor) => void;
   onClose: () => void;
+  onAddProduct?: (newProduct: Product) => void;
 }
 
 const PRESET_THUMBNAILS = [
@@ -190,8 +191,33 @@ export function DistributorProfileModal({
   onSelectProduct,
   onRequestQuote,
   onClose,
+  onAddProduct,
 }: DistributorProfileModalProps) {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'reels' | 'upload'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'reels' | 'upload' | 'addProduct'>('catalog');
+
+  // B2B Add Product Form States
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdBrand, setNewProdBrand] = useState(distributor.brands[0] || 'Generic');
+  const [newProdCategory, setNewProdCategory] = useState(distributor.categories[0] || 'Haircare');
+  const [newProdPrice, setNewProdPrice] = useState('1499');
+  const [newProdOriginalPrice, setNewProdOriginalPrice] = useState('1999');
+  const [newProdDesc, setNewProdDesc] = useState('');
+  const [newProdMoq, setNewProdMoq] = useState('5');
+  const [newProdMargin, setNewProdMargin] = useState('40');
+  const [newProdImage, setNewProdImage] = useState('');
+  const [selectedProdImageFile, setSelectedProdImageFile] = useState<string | null>(null);
+  
+  // Video connection state
+  const [newProdVideoType, setNewProdVideoType] = useState<'upload' | 'link'>('upload');
+  const [uploadedVideoFile, setUploadedVideoFile] = useState<string | null>(null);
+  const [newProdVideoLink, setNewProdVideoLink] = useState('');
+
+  // Variants & Stock states
+  const [newProdInStock, setNewProdInStock] = useState(true);
+  const [newProdVariants, setNewProdVariants] = useState<{ type: string; values: string[] }[]>([]);
+  const [variantTypeInput, setVariantTypeInput] = useState<'Shades' | 'Size/Volume' | 'Other'>('Shades');
+  const [variantValueInput, setVariantValueInput] = useState('');
+
   const [commentsMap, setCommentsMap] = useState<Record<string, ReelComment[]>>(INITIAL_COMMENTS);
   const [newCommentText, setNewCommentText] = useState('');
   const [selectedPresetThumbnail, setSelectedPresetThumbnail] = useState(PRESET_THUMBNAILS[0].url);
@@ -392,6 +418,131 @@ export function DistributorProfileModal({
     }, 2400);
   };
 
+  const handleAddVariantGroup = () => {
+    if (!variantValueInput.trim()) return;
+    const newValues = variantValueInput
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+
+    if (newValues.length === 0) return;
+
+    const groupName = variantTypeInput === 'Size/Volume' ? 'Size / Volume' : variantTypeInput;
+    const existingIndex = newProdVariants.findIndex((v) => v.type === groupName);
+
+    if (existingIndex !== -1) {
+      const updated = [...newProdVariants];
+      const combined = Array.from(new Set([...updated[existingIndex].values, ...newValues]));
+      updated[existingIndex] = { ...updated[existingIndex], values: combined };
+      setNewProdVariants(updated);
+    } else {
+      setNewProdVariants([...newProdVariants, { type: groupName, values: newValues }]);
+    }
+    setVariantValueInput('');
+  };
+
+  const handleRemoveVariantGroup = (index: number) => {
+    setNewProdVariants(newProdVariants.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveVariantValue = (groupIndex: number, valIndex: number) => {
+    const updated = [...newProdVariants];
+    const group = updated[groupIndex];
+    const updatedValues = group.values.filter((_, i) => i !== valIndex);
+    if (updatedValues.length === 0) {
+      setNewProdVariants(newProdVariants.filter((_, i) => i !== groupIndex));
+    } else {
+      updated[groupIndex] = { ...group, values: updatedValues };
+      setNewProdVariants(updated);
+    }
+  };
+
+  const handleAddPresetValue = (type: 'Shades' | 'Size/Volume', value: string) => {
+    const groupName = type === 'Size/Volume' ? 'Size / Volume' : type;
+    const existingIndex = newProdVariants.findIndex((v) => v.type === groupName);
+
+    if (existingIndex !== -1) {
+      if (newProdVariants[existingIndex].values.includes(value)) return;
+      const updated = [...newProdVariants];
+      updated[existingIndex] = { ...updated[existingIndex], values: [...updated[existingIndex].values, value] };
+      setNewProdVariants(updated);
+    } else {
+      setNewProdVariants([...newProdVariants, { type: groupName, values: [value] }]);
+    }
+  };
+
+  const handleProductSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newProdName.trim() || !newProdPrice) return;
+
+    const basePrice = parseFloat(newProdPrice);
+    const retailPrice = newProdOriginalPrice.trim() ? parseFloat(newProdOriginalPrice) : Math.round(basePrice * 1.4);
+    
+    const minQty = parseInt(newProdMoq) || 1;
+    const bulkTiers = [
+      { minQty: minQty, pricePerUnit: basePrice, discountPercent: 0 },
+      { minQty: minQty * 3, pricePerUnit: Math.round(basePrice * 0.92), discountPercent: 8 },
+      { minQty: minQty * 10, pricePerUnit: Math.round(basePrice * 0.85), discountPercent: 15 }
+    ];
+
+    const beautyImagesPreset = [
+      'https://images.unsplash.com/photo-1608248597481-496100c8c836?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1526947425960-945c6e72858f?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?q=80&w=600&auto=format&fit=crop'
+    ];
+
+    const finalImage = newProdImage.trim() || selectedProdImageFile || beautyImagesPreset[Math.floor(Math.random() * beautyImagesPreset.length)];
+
+    const createdProduct: Product = {
+      id: `prod-user-${Date.now()}`,
+      name: newProdName.trim(),
+      brand: newProdBrand,
+      distributorId: distributor.id,
+      distributorName: distributor.name,
+      category: newProdCategory,
+      price: basePrice,
+      originalPrice: retailPrice,
+      discountBadge: `${Math.round(((retailPrice - basePrice) / retailPrice) * 100)}% Margin`,
+      isNew: true,
+      image: finalImage,
+      rating: 5.0,
+      reviewsCount: 1,
+      description: newProdDesc.trim() || `${newProdName} is a high-performance beauty item cataloged natively by ${distributor.name} on the B2B portal.`,
+      inStock: newProdInStock,
+      minOrderQuantity: minQty,
+      bulkTiers: bulkTiers,
+      specifications: {
+        'Origin': 'India',
+        'Formulation': 'Professional Grade',
+        'Packaging': 'Salon Pack',
+        'Authorized Channel': distributor.name,
+      },
+      salonMarginPercent: parseInt(newProdMargin) || 40,
+      variants: newProdVariants.length > 0 ? newProdVariants : undefined,
+    };
+
+    if (onAddProduct) {
+      onAddProduct(createdProduct);
+    }
+
+    setUploadSuccessMsg(`🎉 "${createdProduct.name}" added to your catalog successfully! Variants and stock status are now live.`);
+    
+    // Clear states
+    setNewProdName('');
+    setNewProdDesc('');
+    setNewProdPrice('1499');
+    setNewProdOriginalPrice('1999');
+    setNewProdMoq('5');
+    setNewProdMargin('40');
+    setNewProdVariants([]);
+    setNewProdInStock(true);
+
+    setTimeout(() => {
+      setActiveTab('catalog');
+    }, 1500);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto animate-fade-in"
@@ -533,6 +684,20 @@ export function DistributorProfileModal({
           >
             <span className="material-symbols-outlined text-base">video_call</span>
             <span>+ Upload Video / Reel</span>
+          </button>
+
+          <button
+            type="button"
+            id="distributor-add-product-tab-btn"
+            onClick={() => setActiveTab('addProduct')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'addProduct'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-t-xl border border-amber-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">add_box</span>
+            <span>+ Add Product (नया उत्पाद जोड़ें)</span>
           </button>
         </div>
 
@@ -1149,6 +1314,382 @@ export function DistributorProfileModal({
                     <span>Process, Rank & Publish Video to HomeScreen</span>
                   </button>
                 )}
+              </form>
+            </div>
+          )}
+
+          {/* TAB 4: ADD PRODUCT WITH VARIANTS & STOCK STATUS */}
+          {activeTab === 'addProduct' && (
+            <div className="space-y-5 max-w-4xl mx-auto animate-fade-in">
+              <div className="bg-gradient-to-r from-amber-600 to-[#8e004b] text-white p-4 rounded-2xl flex items-start gap-3 shadow-md">
+                <span className="material-symbols-outlined text-3xl shrink-0">add_to_photos</span>
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-black tracking-wide">B2B Wholesale Catalog Publisher (नया उत्पाद जोड़ें)</h3>
+                  <p className="text-xs text-stone-100 leading-relaxed">
+                    Add new products to your salon-direct wholesale catalog. Define interactive product shades, volume sizes, minimum order quantities (MOQs), and real-time stock availability.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleProductSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* LEFT COLUMN: BASIC DATA & STOCK */}
+                <div className="space-y-4">
+                  <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-3">
+                    <h4 className="text-xs font-bold text-[#1c1b1b] uppercase tracking-wider flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-[#8e004b]">info</span>
+                      <span>Product Specifications</span>
+                    </h4>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-[#1c1b1b] block">Product Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Nexora Moroccan Argan Hair Color"
+                        value={newProdName}
+                        onChange={(e) => setNewProdName(e.target.value)}
+                        className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Brand Name</label>
+                        <select
+                          value={newProdBrand}
+                          onChange={(e) => setNewProdBrand(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        >
+                          {distributor.brands.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                          <option value="Nexora Pro">Nexora Pro</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Category</label>
+                        <select
+                          value={newProdCategory}
+                          onChange={(e) => setNewProdCategory(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        >
+                          {distributor.categories.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="Hair Care">Hair Care</option>
+                          <option value="Hair Color">Hair Color</option>
+                          <option value="Skincare">Skincare</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Salon Wholesale Price (₹) *</label>
+                        <input
+                          type="number"
+                          required
+                          value={newProdPrice}
+                          onChange={(e) => setNewProdPrice(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Original Retail / MRP (₹)</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 1999"
+                          value={newProdOriginalPrice}
+                          onChange={(e) => setNewProdOriginalPrice(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Min Order Qty (MOQ)</label>
+                        <input
+                          type="number"
+                          required
+                          value={newProdMoq}
+                          onChange={(e) => setNewProdMoq(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#1c1b1b] block">Est. Salon Profit Margin (%)</label>
+                        <input
+                          type="number"
+                          required
+                          value={newProdMargin}
+                          onChange={(e) => setNewProdMargin(e.target.value)}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* STOCK STATUS SELECTOR */}
+                  <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-2.5">
+                    <label className="text-xs font-extrabold text-[#1c1b1b] flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm text-[#8e004b]">inventory</span>
+                        <span>Stock Status / उपलब्धता</span>
+                      </span>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                        newProdInStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {newProdInStock ? 'Live Wholesale' : 'Temporarily Offline'}
+                      </span>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setNewProdInStock(true)}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                          newProdInStock
+                            ? 'bg-green-50 border-green-500 text-green-800 shadow-sm font-bold scale-102'
+                            : 'bg-white border-[#E8E8E8] text-stone-500 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg text-green-600 animate-pulse">check_circle</span>
+                        <span className="text-xs">In Stock</span>
+                        <span className="text-[9px] opacity-80 font-medium">Ready for salon orders</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setNewProdInStock(false)}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                          !newProdInStock
+                            ? 'bg-rose-50 border-rose-500 text-rose-800 shadow-sm font-bold scale-102'
+                            : 'bg-white border-[#E8E8E8] text-stone-500 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg text-rose-600">cancel</span>
+                        <span className="text-xs">Out of Stock</span>
+                        <span className="text-[9px] opacity-80 font-medium">Temporarily disabled</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: DESCRIPTION, PRESET PHOTO & VARIANTS */}
+                <div className="space-y-4">
+                  <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-3">
+                    <h4 className="text-xs font-bold text-[#1c1b1b] uppercase tracking-wider flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-[#8e004b]">description</span>
+                      <span>Marketing & Imagery</span>
+                    </h4>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-[#1c1b1b] block">Product Description</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Detail application guidelines, key ingredients, hair-type suitabilities, or post-treatment benefits..."
+                        value={newProdDesc}
+                        onChange={(e) => setNewProdDesc(e.target.value)}
+                        className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-[#1c1b1b] block">Paste Custom Image URL (Optional)</label>
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={newProdImage}
+                        onChange={(e) => {
+                          setNewProdImage(e.target.value);
+                          setSelectedProdImageFile(null);
+                        }}
+                        className="w-full bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:border-[#8e004b] outline-none"
+                      />
+                    </div>
+
+                    {/* Quick Preset Image Selectors */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Or select a preset mock catalog photo:</span>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { name: 'Color Cream', url: 'https://images.unsplash.com/photo-1608248597481-496100c8c836?q=80&w=600&auto=format&fit=crop' },
+                          { name: 'Argan Serum', url: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?q=80&w=600&auto=format&fit=crop' },
+                          { name: 'Moisturizer', url: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?q=80&w=600&auto=format&fit=crop' },
+                          { name: 'Style Gel', url: 'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?q=80&w=600&auto=format&fit=crop' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedProdImageFile(preset.url);
+                              setNewProdImage('');
+                            }}
+                            className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                              selectedProdImageFile === preset.url
+                                ? 'border-[#8e004b] scale-102 ring-2 ring-[#8e004b]/20 shadow-xs'
+                                : 'border-transparent hover:border-stone-300'
+                            }`}
+                          >
+                            <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-center">
+                              <span className="text-[8px] text-white font-semibold block truncate px-1">{preset.name}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DYNAMIC PRODUCT VARIANTS CONFIGURATION BOX */}
+                  <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#1c1b1b] uppercase tracking-wider flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm text-[#8e004b]">style</span>
+                        <span>Product Variants (वैरिएंट्स जोड़ें)</span>
+                      </h4>
+                      <span className="text-[10px] text-stone-500 font-semibold">Optional</span>
+                    </div>
+
+                    {/* Variant Group Creator controls */}
+                    <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-500 uppercase block mb-1">Variant Category</label>
+                          <select
+                            value={variantTypeInput}
+                            onChange={(e) => setVariantTypeInput(e.target.value as any)}
+                            className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:bg-white focus:border-[#8e004b] outline-none"
+                          >
+                            <option value="Shades">Shades (Black, Red, etc.)</option>
+                            <option value="Size/Volume">Size / Volume (100ml, 500ml, etc.)</option>
+                            <option value="Other">Other Custom Attribute</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-500 uppercase block mb-1">Enter Values</label>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="text"
+                              value={variantValueInput}
+                              onChange={(e) => setVariantValueInput(e.target.value)}
+                              placeholder="e.g. Red, Black, Nude"
+                              className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddVariantGroup();
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddVariantGroup}
+                              className="bg-[#8e004b] hover:bg-[#b90064] text-white rounded-lg px-3 py-1.5 text-xs font-bold flex items-center transition-all shrink-0"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Variant Presets for speedy clicks */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-stone-500 uppercase block">Quick Suggestions (क्लिक करें):</span>
+                        {variantTypeInput === 'Shades' ? (
+                          <div className="flex flex-wrap gap-1">
+                            {['Black', 'Brown', 'Dark Brown', 'Red', 'Nude', 'Blonde'].map((sh) => (
+                              <button
+                                key={sh}
+                                type="button"
+                                onClick={() => handleAddPresetValue('Shades', sh)}
+                                className="bg-[#FFF8FA] hover:bg-[#FDE7F3] border border-[#FDE7F3] text-[#8e004b] px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
+                              >
+                                + {sh}
+                              </button>
+                            ))}
+                          </div>
+                        ) : variantTypeInput === 'Size/Volume' ? (
+                          <div className="flex flex-wrap gap-1">
+                            {['100ml', '250ml', '500ml', '1L', '2L'].map((sz) => (
+                              <button
+                                key={sz}
+                                type="button"
+                                onClick={() => handleAddPresetValue('Size/Volume', sz)}
+                                className="bg-[#FFF8FA] hover:bg-[#FDE7F3] border border-[#FDE7F3] text-[#8e004b] px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
+                              >
+                                + {sz}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[9px] text-stone-400 italic">Type custom values separated by commas in the box above</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Display of Currently Configured Variants */}
+                    {newProdVariants.length > 0 ? (
+                      <div className="space-y-2 pt-1">
+                        <span className="text-[10px] font-bold text-stone-500 uppercase block">Configured Product Variants:</span>
+                        <div className="space-y-2">
+                          {newProdVariants.map((group, groupIdx) => (
+                            <div key={group.type} className="bg-white border border-stone-200 rounded-xl p-2.5 relative space-y-1">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveVariantGroup(groupIdx)}
+                                className="absolute top-2 right-2 text-stone-400 hover:text-rose-600 transition-colors"
+                                title="Remove entire variant group"
+                              >
+                                <span className="material-symbols-outlined text-sm">delete</span>
+                              </button>
+                              <span className="text-xs font-bold text-[#8e004b] block uppercase tracking-wider">{group.type}</span>
+                              <div className="flex flex-wrap gap-1 pr-6 pt-0.5">
+                                {group.values.map((v, valIdx) => (
+                                  <span
+                                    key={v}
+                                    className="bg-stone-100 text-stone-800 text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 border border-stone-200"
+                                  >
+                                    <span>{v}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveVariantValue(groupIdx, valIdx)}
+                                      className="text-stone-400 hover:text-stone-700 font-extrabold focus:outline-none"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 bg-white rounded-xl border border-dashed border-stone-200">
+                        <span className="material-symbols-outlined text-xl text-stone-300">layers_clear</span>
+                        <p className="text-[10px] text-stone-400 mt-0.5">No variants added yet. Will create as a single standard item.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* FULL WIDTH SUBMIT BUTTON */}
+                <div className="md:col-span-2 pt-2">
+                  <button
+                    type="submit"
+                    id="submit-new-b2b-product-btn"
+                    className="w-full bg-[#8e004b] hover:bg-[#b90064] text-white font-black text-xs md:text-sm py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2.5 active:scale-98 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base md:text-lg">publish</span>
+                    <span>Publish to My Salon Catalog & Active Orders</span>
+                  </button>
+                </div>
               </form>
             </div>
           )}

@@ -14,6 +14,7 @@ import {
   PRODUCTS_DATA,
   INITIAL_ORDERS,
   INITIAL_REELS,
+  DISTRIBUTORS_DATA,
 } from './data/mockData';
 import { SplashScreen } from './components/SplashScreen';
 import { AuthScreen } from './components/AuthScreen';
@@ -89,6 +90,14 @@ export default function App() {
       if (!a.isFeatured && b.isFeatured) return 1;
       return b.popularityScore - a.popularityScore;
     });
+  };
+
+  // Stateful products list for B2B catalog management
+  const [products, setProducts] = useState<Product[]>(() => PRODUCTS_DATA);
+
+  const handleAddProduct = (newProduct: Product) => {
+    PRODUCTS_DATA.unshift(newProduct);
+    setProducts([newProduct, ...PRODUCTS_DATA]);
   };
 
   // Reels & Videos state sorted by featured status & popularity score
@@ -256,6 +265,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDF8F8] text-[#1c1b1b] flex flex-col selection:bg-[#FDE7F3] selection:text-[#8e004b]">
+
       {/* Dev / Presentation Screen Quick Switcher Bar */}
       <div className="bg-[#1c1b1b] text-white text-xs py-1.5 px-4 flex flex-wrap items-center justify-between gap-2 z-50 print:hidden">
         <div className="flex items-center gap-2">
@@ -539,7 +549,14 @@ export default function App() {
         onSelectProduct={(p) => setSelectedProduct(p)}
         onViewDistributor={(distId) => {
           setSelectedProduct(null);
-          setActiveTab('directory');
+          const dist = DISTRIBUTORS_DATA.find(
+            (d) => d.id === distId || d.name.toLowerCase() === distId.toLowerCase() || d.name.toLowerCase().includes(distId.toLowerCase())
+          );
+          if (dist) {
+            setSelectedDistributorProfile(dist);
+          } else {
+            setActiveTab('directory');
+          }
         }}
         isWishlisted={selectedProduct ? wishlistIds.includes(selectedProduct.id) : false}
         onToggleWishlist={handleToggleWishlist}
@@ -574,7 +591,7 @@ export default function App() {
       {selectedDistributorProfile && (
         <DistributorProfileModal
           distributor={selectedDistributorProfile}
-          products={PRODUCTS_DATA}
+          products={products}
           reels={reels}
           onUploadReel={handleUploadReel}
           onEditReel={handleEditReel}
@@ -585,6 +602,7 @@ export default function App() {
           onSelectProduct={(p) => setSelectedProduct(p)}
           onRequestQuote={(d) => setSelectedDistributorForQuote(d)}
           onClose={() => setSelectedDistributorProfile(null)}
+          onAddProduct={handleAddProduct}
         />
       )}
 
