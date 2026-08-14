@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import React, { useState, FormEvent } from 'react';
 import { NEXORA_ASSETS, INITIAL_USER } from '../data/mockData';
 import { User } from '../types';
 
@@ -11,21 +11,112 @@ interface AuthScreenProps {
 export function AuthScreen({ onSuccess, onBackToSplash, onContinueAsGuest }: AuthScreenProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Form Fields
   const [email, setEmail] = useState('riya.sharma@example.com');
   const [password, setPassword] = useState('••••••••');
   const [name, setName] = useState('Riya Sharma');
   const [mobile, setMobile] = useState('98765 43210');
-  const [salonName, setSalonName] = useState('Aura Luxe Salon & Spa');
+  const [rememberMe, setRememberMe] = useState(true);
+
+  // Forgot Password state
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Validation Shake State
+  const [isShaking, setIsShaking] = useState(false);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+
+  const triggerError = (msg: string, fields: string[]) => {
+    setError(msg);
+    setInvalidFields(fields);
+    setIsShaking(true);
+    setTimeout(() => {
+      setIsShaking(false);
+    }, 500);
+  };
+
+  const clearFieldError = (fieldName: string) => {
+    if (invalidFields.includes(fieldName)) {
+      setInvalidFields((prev) => prev.filter((f) => f !== fieldName));
+    }
+    if (invalidFields.length <= 1) {
+      setError(null);
+    }
+  };
+
+  const getInputClasses = (fieldName: string, extraPadding = 'pl-10 pr-4') => {
+    const isInvalid = invalidFields.includes(fieldName);
+    const base = `w-full bg-[#F0EDEC] border text-[#1c1b1b] rounded-[8px] ${extraPadding} py-3 text-xs sm:text-sm focus:bg-white focus:border-[#8e004b] focus:ring-2 focus:ring-[#8e004b]/20 outline-none transition-all`;
+    const errorStyle = isInvalid ? 'border-red-500 bg-red-50/40 ring-2 ring-red-500/20' : 'border-[#E8E8E8]';
+    const shakeStyle = isShaking && isInvalid ? 'animate-shake' : '';
+    return `${base} ${errorStyle} ${shakeStyle}`;
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSuccess({
-      ...INITIAL_USER,
-      name: name || 'Riya Sharma',
-      email: email || 'riya.sharma@example.com',
-      phone: mobile ? `+91 ${mobile}` : '+91 98765 43210',
-      salonName: salonName || 'Aura Luxe Salon & Spa',
-    });
+    setError(null);
+
+    if (activeTab === 'login') {
+      const missing: string[] = [];
+      if (!email.trim()) missing.push('email');
+      if (!password.trim()) missing.push('password');
+
+      if (missing.length > 0) {
+        const msg = missing.length > 1 
+          ? 'Please enter both Email ID and Password.' 
+          : missing.includes('email') 
+            ? 'Please enter a valid Email ID.' 
+            : 'Please enter your password.';
+        triggerError(msg, missing);
+        return;
+      }
+
+      onSuccess({
+        ...INITIAL_USER,
+        email: email.trim(),
+      });
+    } else {
+      const missing: string[] = [];
+      if (!name.trim()) missing.push('name');
+      if (!email.trim()) missing.push('email');
+      if (!mobile.trim()) missing.push('mobile');
+      if (!password.trim()) missing.push('password');
+
+      if (missing.length > 0) {
+        const msg = missing.length > 1 
+          ? 'Please fill in all required fields.' 
+          : missing.includes('name')
+            ? 'Please enter your Name.'
+            : missing.includes('email')
+              ? 'Please enter a valid Email ID.'
+              : missing.includes('mobile')
+                ? 'Please enter your Mobile Number.'
+                : 'Please create a password.';
+        triggerError(msg, missing);
+        return;
+      }
+
+      onSuccess({
+        ...INITIAL_USER,
+        name: name.trim(),
+        email: email.trim(),
+        phone: mobile.startsWith('+91') ? mobile.trim() : `+91 ${mobile.trim()}`,
+      });
+    }
+  };
+
+  const handleForgotSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      triggerError('Please enter your registered Email ID.', ['forgotEmail']);
+      return;
+    }
+    setError(null);
+    setInvalidFields([]);
+    setResetSent(true);
   };
 
   const handleQuickDemo = () => {
@@ -33,245 +124,520 @@ export function AuthScreen({ onSuccess, onBackToSplash, onContinueAsGuest }: Aut
   };
 
   return (
-    <main className="flex min-h-screen w-full bg-[#FCF9F8] text-[#1c1b1b] relative">
-      {/* Top back button */}
-      <button
-        id="auth-back-splash-btn"
-        onClick={onBackToSplash}
-        className="absolute top-4 left-4 z-30 flex items-center gap-1 text-sm font-medium text-[#594047] hover:text-[#8e004b] bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#E8E8E8] shadow-sm transition-all"
-      >
-        <span className="material-symbols-outlined text-lg">arrow_back</span>
-        <span>Back to Splash</span>
-      </button>
-
-      {/* Left Column: Editorial Image (Hidden on Mobile) */}
-      <div className="hidden lg:block lg:w-1/2 relative bg-[#F0EDEC] overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center transform scale-105 transition-transform duration-1000"
-          data-alt="Editorial luxury beauty salon interior"
-          style={{
-            backgroundImage: `url("${NEXORA_ASSETS.authBg}")`,
-          }}
-        />
-        {/* Soft dark overlay to ensure image doesn't overpower the brand */}
-        <div className="absolute inset-0 bg-[#313030]/30 mix-blend-multiply" />
-        <div className="absolute bottom-10 left-10 right-10 z-10 text-white p-6 bg-black/40 backdrop-blur-md rounded-2xl border border-white/20">
-          <div className="flex items-center gap-2 mb-2 text-[#ffd9e2] font-semibold text-xs tracking-wider uppercase">
-            <span className="material-symbols-outlined text-sm">verified</span>
-            <span>Direct Manufacturer Pricing</span>
-          </div>
-          <h3 className="text-2xl font-bold mb-1">Empowering 25,000+ Salons Across India</h3>
-          <p className="text-sm text-white/80">
-            Access verified distributors, GST input tax credits, and bulk tier wholesale rates directly on Nexora.
-          </p>
-        </div>
+    <main className="min-h-screen w-full bg-[#FCF9F8] text-[#1c1b1b] flex items-center justify-center p-3 sm:p-6 lg:p-10 relative overflow-x-hidden font-sans">
+      {/* Top Header Navigation */}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30">
+        <button
+          id="auth-back-splash-btn"
+          type="button"
+          onClick={onBackToSplash}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#594047] hover:text-[#8e004b] bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-full border border-[#E8E8E8] shadow-xs hover:shadow-md transition-all active:scale-95"
+        >
+          <span className="material-symbols-outlined text-base">arrow_back</span>
+          <span>Back to Splash</span>
+        </button>
       </div>
 
-      {/* Right Column: Authentication Area */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-5 md:p-10 relative">
-        <div className="w-full max-w-md flex flex-col gap-6 my-auto pt-10 pb-6">
-          {/* Header / Brand Area */}
-          <div className="flex flex-col gap-2 items-center text-center">
+      {/* Main Luxury Frame Card */}
+      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-[#E8E8E8] overflow-hidden flex flex-col lg:flex-row my-auto animate-fade-in relative">
+        {/* Left / Top Column: Luxury Beauty Editorial Image */}
+        <div className="w-full lg:w-1/2 relative bg-[#1c1b1b] min-h-[220px] sm:min-h-[280px] lg:min-h-[620px] flex flex-col justify-between p-6 sm:p-8 lg:p-10 overflow-hidden">
+          {/* Background Photography */}
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-85 transition-transform duration-1000 scale-105 hover:scale-100"
+            style={{
+              backgroundImage: `url("${NEXORA_ASSETS.authBg}")`,
+            }}
+          />
+
+          {/* Dark Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
+
+          {/* Top Luxury Badge */}
+          <div className="relative z-10 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white text-[10px] sm:text-xs font-extrabold uppercase tracking-widest px-3 py-1 rounded-full border border-white/30 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>India's #1 B2B Salon Network</span>
+            </span>
+          </div>
+
+          {/* Mobile Image Overlay Nexora Logo */}
+          <div className="relative z-10 my-auto lg:hidden text-center py-2">
             <img
-              alt="Nexora Logo"
-              className="mx-auto w-36 md:w-44 object-contain mb-2 cursor-pointer hover:scale-105 transition-transform"
               src={NEXORA_ASSETS.logo}
-              onClick={onBackToSplash}
+              alt="Nexora Logo"
+              className="h-10 sm:h-12 object-contain mx-auto drop-shadow-md brightness-200 contrast-200"
             />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[#1c1b1b]">
-                Salon जा रहे हो?<br />
-                <span className="text-[#8e004b] tracking-tight">NEXORA</span> किया क्या?
-              </h1>
-              <p className="text-sm text-[#594047] mt-1 font-medium">
-                Beauty Products • Distributors • Deals
-              </p>
+          </div>
+
+          {/* Bottom Editorial Quote */}
+          <div className="relative z-10 space-y-2 mt-auto text-white hidden lg:block">
+            <div className="flex items-center gap-1 text-amber-300 text-xs font-bold tracking-wide">
+              <span>★ ★ ★ ★ ★</span>
+              <span className="text-white/80 font-normal ml-1">Trusted by 25,000+ Salons</span>
+            </div>
+
+            <h2 className="text-xl lg:text-2xl font-bold leading-tight text-white tracking-tight">
+              Direct Distributor Pricing & Claimable 18% GST Invoices
+            </h2>
+
+            <p className="text-xs text-stone-300 leading-relaxed max-w-md">
+              Order authentic haircare, skincare, equipment & beauty supplies from verified regional distributors with same-day dispatch across India.
+            </p>
+
+            <div className="pt-2 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider text-white/90">
+              <span className="bg-white/10 backdrop-blur-xs px-2.5 py-1 rounded-md border border-white/10">
+                ✓ 100% Authentic Brands
+              </span>
+              <span className="bg-white/10 backdrop-blur-xs px-2.5 py-1 rounded-md border border-white/10">
+                ✓ Bulk Volume Discounts
+              </span>
+              <span className="bg-white/10 backdrop-blur-xs px-2.5 py-1 rounded-md border border-white/10">
+                ✓ Express Doorstep Delivery
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Auth Toggle Tabs */}
-          <div className="flex border-b border-[#E8E8E8] w-full relative">
-            <button
-              id="tab-login"
-              type="button"
-              className={`w-1/2 py-3 text-center text-base font-semibold transition-all ${
-                activeTab === 'login'
-                  ? 'text-[#8e004b] border-b-2 border-[#8e004b]'
-                  : 'text-[#594047] hover:text-[#8e004b]'
-              }`}
-              onClick={() => setActiveTab('login')}
-            >
-              Login
-            </button>
-            <button
-              id="tab-signup"
-              type="button"
-              className={`w-1/2 py-3 text-center text-base font-semibold transition-all ${
-                activeTab === 'signup'
-                  ? 'text-[#8e004b] border-b-2 border-[#8e004b]'
-                  : 'text-[#594047] hover:text-[#8e004b]'
-              }`}
-              onClick={() => setActiveTab('signup')}
-            >
-              Sign Up
-            </button>
-          </div>
+        {/* Right Column: Refined Login / Sign Up Form */}
+        <div className="w-full lg:w-1/2 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white">
+          <div className="w-full max-w-md mx-auto space-y-6">
+            {/* Nexora Branding & Taglines */}
+            <div className="text-center space-y-2">
+              <img
+                src={NEXORA_ASSETS.logo}
+                alt="Nexora Logo"
+                onClick={onBackToSplash}
+                className="h-10 sm:h-12 object-contain mx-auto cursor-pointer hover:scale-105 transition-transform duration-200"
+              />
 
-          {/* Forms Container */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-            {activeTab === 'signup' && (
+              <div className="pt-1">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1c1b1b] tracking-tight leading-tight">
+                  Salon जा रहे हो?<br />
+                  <span className="text-[#8e004b] tracking-tight">NEXORA</span> किया क्या?
+                </h1>
+                <p className="text-xs sm:text-sm font-bold text-[#8e004b] tracking-wider uppercase mt-2 bg-[#FDE7F3]/60 py-1 px-3 rounded-full inline-block border border-[#8e004b]/20">
+                  Beauty Products • Distributors • Deals
+                </p>
+              </div>
+            </div>
+
+            {/* Error Banner if any */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold p-3 rounded-xl flex items-center gap-2 animate-fade-in">
+                <span className="material-symbols-outlined text-base text-red-600">error</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Forgot Password Flow */}
+            {forgotMode ? (
+              <div className="space-y-5 animate-fade-in pt-2">
+                <div className="space-y-1 text-center">
+                  <h3 className="text-base font-bold text-[#1c1b1b]">Reset Your Password</h3>
+                  <p className="text-xs text-[#594047]">
+                    Enter your registered email address to receive password reset instructions.
+                  </p>
+                </div>
+
+                {resetSent ? (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                      <span className="material-symbols-outlined text-xl">mark_email_read</span>
+                    </div>
+                    <p className="text-xs font-semibold">
+                      Password reset link sent to <strong>{forgotEmail}</strong>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotMode(false);
+                        setResetSent(false);
+                      }}
+                      className="text-xs font-bold text-[#8e004b] hover:underline"
+                    >
+                      Return to Login
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotSubmit} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="forgot-email" className="block text-xs font-bold text-[#594047]">
+                        Email ID
+                      </label>
+                      <div className="relative">
+                        <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                          mail
+                        </span>
+                        <input
+                          id="forgot-email"
+                          type="email"
+                          value={forgotEmail}
+                          onChange={(e) => {
+                            setForgotEmail(e.target.value);
+                            clearFieldError('forgotEmail');
+                          }}
+                          placeholder="Enter Email ID"
+                          className={getInputClasses('forgotEmail')}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      id="forgot-submit-btn"
+                      type="submit"
+                      className="w-full bg-[#8e004b] hover:bg-[#b90064] text-white font-bold text-xs sm:text-sm tracking-wider uppercase py-3.5 rounded-[8px] shadow-md hover:shadow-lg shadow-[#8e004b]/25 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-base">send</span>
+                      <span>Send Reset Link</span>
+                    </button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => setForgotMode(false)}
+                        className="text-xs font-semibold text-[#594047] hover:text-[#8e004b] transition-colors"
+                      >
+                        ← Back to Login
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-[#594047] px-1" htmlFor="signup-name">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#594047]">
-                      person
-                    </span>
-                    <input
-                      id="signup-name"
-                      className="nexora-input w-full bg-[#F0EDEC] py-3 pl-12 pr-4 text-[#1c1b1b] text-sm"
-                      placeholder="Riya Sharma"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
+                {/* Auth Mode Segmented Control Switch */}
+                <div className="bg-[#F0EDEC] p-1 rounded-xl flex items-center border border-[#E8E8E8] relative">
+                  <button
+                    id="tab-login"
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('login');
+                      setError(null);
+                      setInvalidFields([]);
+                    }}
+                    className={`w-1/2 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 text-center ${
+                      activeTab === 'login'
+                        ? 'bg-white text-[#8e004b] shadow-xs'
+                        : 'text-[#594047] hover:text-[#1c1b1b]'
+                    }`}
+                  >
+                    Login
+                  </button>
+
+                  <button
+                    id="tab-signup"
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('signup');
+                      setError(null);
+                      setInvalidFields([]);
+                    }}
+                    className={`w-1/2 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 text-center ${
+                      activeTab === 'signup'
+                        ? 'bg-white text-[#8e004b] shadow-xs'
+                        : 'text-[#594047] hover:text-[#1c1b1b]'
+                    }`}
+                  >
+                    Sign Up
+                  </button>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-[#594047] px-1" htmlFor="signup-salon">
-                    Salon / Business Name
-                  </label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#594047]">
-                      storefront
-                    </span>
-                    <input
-                      id="signup-salon"
-                      className="nexora-input w-full bg-[#F0EDEC] py-3 pl-12 pr-4 text-[#1c1b1b] text-sm"
-                      placeholder="Aura Luxe Salon & Spa"
-                      type="text"
-                      value={salonName}
-                      onChange={(e) => setSalonName(e.target.value)}
-                    />
-                  </div>
-                </div>
+                {/* Authentication Form */}
+                <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in" noValidate>
+                  {/* SIGN UP FIELDS */}
+                  {activeTab === 'signup' && (
+                    <>
+                      {/* Name Field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="signup-name" className="block text-xs font-bold text-[#594047]">
+                          Name
+                        </label>
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                            person
+                          </span>
+                          <input
+                            id="signup-name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => {
+                              setName(e.target.value);
+                              clearFieldError('name');
+                            }}
+                            placeholder="Enter Name"
+                            className={getInputClasses('name')}
+                            required
+                          />
+                        </div>
+                      </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-[#594047] px-1" htmlFor="signup-mobile">
-                    Mobile Number (WhatsApp)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#594047] text-sm font-medium">
-                      +91
-                    </span>
-                    <input
-                      id="signup-mobile"
-                      className="nexora-input w-full bg-[#F0EDEC] py-3 pl-14 pr-4 text-[#1c1b1b] text-sm tracking-wide"
-                      placeholder="98765 43210"
-                      type="tel"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
-                      required
-                    />
+                      {/* Email ID Field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="signup-email" className="block text-xs font-bold text-[#594047]">
+                          Email ID
+                        </label>
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                            mail
+                          </span>
+                          <input
+                            id="signup-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              clearFieldError('email');
+                            }}
+                            placeholder="Enter Email ID"
+                            className={getInputClasses('email')}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Mobile Number Field (Single field for mobile) */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="signup-mobile" className="block text-xs font-bold text-[#594047]">
+                          Mobile Number
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3.5 text-[#594047] text-xs font-bold border-r border-[#E8E8E8] pr-2 pointer-events-none">
+                            +91
+                          </span>
+                          <input
+                            id="signup-mobile"
+                            type="tel"
+                            value={mobile}
+                            onChange={(e) => {
+                              setMobile(e.target.value);
+                              clearFieldError('mobile');
+                            }}
+                            placeholder="Enter Mobile Number"
+                            className={getInputClasses('mobile', 'pl-14 pr-4')}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password Field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="signup-password" className="block text-xs font-bold text-[#594047]">
+                          Password
+                        </label>
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                            lock
+                          </span>
+                          <input
+                            id="signup-password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              clearFieldError('password');
+                            }}
+                            placeholder="Create Password"
+                            className={getInputClasses('password', 'pl-10 pr-12')}
+                            required
+                          />
+                          <button
+                            id="signup-toggle-password-btn"
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#594047] hover:text-[#8e004b] transition-colors p-1"
+                            title={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            <span className="material-symbols-outlined text-lg">
+                              {showPassword ? 'visibility_off' : 'visibility'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Create Account CTA */}
+                      <button
+                        id="auth-signup-submit-btn"
+                        type="submit"
+                        className="w-full bg-[#8e004b] hover:bg-[#b90064] text-white font-bold text-xs sm:text-sm tracking-wider uppercase py-3.5 rounded-[8px] shadow-md hover:shadow-lg shadow-[#8e004b]/25 transition-all duration-200 active:scale-[0.99] hover:-translate-y-0.5 flex items-center justify-center gap-2 mt-2"
+                      >
+                        <span>CREATE ACCOUNT</span>
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
+                      </button>
+
+                      {/* Switch to Login Link */}
+                      <div className="text-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('login');
+                            setError(null);
+                            setInvalidFields([]);
+                          }}
+                          className="text-xs font-semibold text-[#594047] hover:text-[#8e004b] transition-colors"
+                        >
+                          Already have an account? <span className="text-[#8e004b] font-bold underline ml-1">Login</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* LOGIN FIELDS */}
+                  {activeTab === 'login' && (
+                    <>
+                      {/* Email ID Field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="login-email" className="block text-xs font-bold text-[#594047]">
+                          Email ID
+                        </label>
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                            mail
+                          </span>
+                          <input
+                            id="login-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              clearFieldError('email');
+                            }}
+                            placeholder="Enter Email ID"
+                            className={getInputClasses('email')}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password Field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="login-password" className="block text-xs font-bold text-[#594047]">
+                          Password
+                        </label>
+
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#594047] text-lg">
+                            lock
+                          </span>
+                          <input
+                            id="login-password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              clearFieldError('password');
+                            }}
+                            placeholder="Enter Password"
+                            className={getInputClasses('password', 'pl-10 pr-12')}
+                            required
+                          />
+                          <button
+                            id="login-toggle-password-btn"
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#594047] hover:text-[#8e004b] transition-colors p-1"
+                            title={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            <span className="material-symbols-outlined text-lg">
+                              {showPassword ? 'visibility_off' : 'visibility'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Remember Me & Forgot Password Options Row */}
+                      <div className="flex items-center justify-between pt-1">
+                        <label
+                          htmlFor="remember-me-checkbox"
+                          className="flex items-center gap-2 text-xs font-semibold text-[#594047] cursor-pointer select-none group"
+                        >
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              id="remember-me-checkbox"
+                              type="checkbox"
+                              checked={rememberMe}
+                              onChange={(e) => setRememberMe(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-4 h-4 rounded border border-[#d2c9cc] bg-[#F0EDEC] peer-checked:bg-[#8e004b] peer-checked:border-[#8e004b] peer-focus:ring-2 peer-focus:ring-[#8e004b]/20 transition-all flex items-center justify-center group-hover:border-[#8e004b]">
+                              {rememberMe && (
+                                <span className="material-symbols-outlined text-white text-[12px] font-bold leading-none select-none">
+                                  check
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="group-hover:text-[#1c1b1b] transition-colors">
+                            Remember me
+                          </span>
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForgotMode(true);
+                            setForgotEmail(email);
+                            setError(null);
+                            setInvalidFields([]);
+                          }}
+                          className="text-xs font-bold text-[#8e004b] hover:underline"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+
+                      {/* LOGIN CTA */}
+                      <button
+                        id="auth-login-submit-btn"
+                        type="submit"
+                        className="w-full bg-[#8e004b] hover:bg-[#b90064] text-white font-bold text-xs sm:text-sm tracking-wider uppercase py-3.5 rounded-[8px] shadow-md hover:shadow-lg shadow-[#8e004b]/25 transition-all duration-200 active:scale-[0.99] hover:-translate-y-0.5 flex items-center justify-center gap-2 mt-2"
+                      >
+                        <span>LOGIN</span>
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
+                      </button>
+
+                      {/* Switch to Sign Up Link */}
+                      <div className="text-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('signup');
+                            setError(null);
+                          }}
+                          className="text-xs font-semibold text-[#594047] hover:text-[#8e004b] transition-colors"
+                        >
+                          New to Nexora? <span className="text-[#8e004b] font-bold underline ml-1">Sign Up</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Demo Login & Guest Access Shortcut Section */}
+                  <div className="pt-4 border-t border-[#E8E8E8] space-y-2">
+                    <button
+                      id="instant-demo-btn"
+                      type="button"
+                      onClick={handleQuickDemo}
+                      className="w-full bg-[#FDE7F3] hover:bg-[#ffd9e2] text-[#8e004b] font-bold text-xs py-2.5 px-4 rounded-xl transition-all border border-[#8e004b]/20 flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-base">bolt</span>
+                      <span>Instant Demo Login (Riya Sharma)</span>
+                    </button>
+
+                    <button
+                      id="guest-explore-btn"
+                      type="button"
+                      onClick={onContinueAsGuest}
+                      className="w-full text-xs font-semibold text-[#594047] hover:text-[#8e004b] py-1 transition-colors text-center block"
+                    >
+                      Or continue exploring as Guest →
+                    </button>
                   </div>
-                </div>
+                </form>
               </>
             )}
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-[#594047] px-1" htmlFor="login-email">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#594047]">
-                  mail
-                </span>
-                <input
-                  id="login-email"
-                  className="nexora-input w-full bg-[#F0EDEC] py-3 pl-12 pr-4 text-[#1c1b1b] text-sm"
-                  placeholder="riya.sharma@example.com"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-[#594047] px-1" htmlFor="login-password">
-                Password
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#594047]">
-                  lock
-                </span>
-                <input
-                  id="login-password"
-                  className="nexora-input w-full bg-[#F0EDEC] py-3 pl-12 pr-12 text-[#1c1b1b] text-sm"
-                  placeholder="••••••••"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#594047] hover:text-[#8e004b] transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    {showPassword ? 'visibility_off' : 'visibility'}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {activeTab === 'login' && (
-              <div className="flex justify-end w-full">
-                <button
-                  type="button"
-                  className="text-xs font-medium text-[#8e004b] hover:text-[#b90064] transition-colors"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-            )}
-
-            <button
-              id="auth-submit-btn"
-              type="submit"
-              className="w-full bg-[#8e004b] text-white font-semibold text-base py-3.5 rounded-lg mt-2 shadow-sm hover:shadow-md hover:bg-[#b90064] transition-all duration-200 active:scale-[0.98]"
-            >
-              {activeTab === 'login' ? 'Login to Nexora' : 'Create Salon Account'}
-            </button>
-
-            {/* Quick Helper Actions */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-[#E8E8E8]">
-              <button
-                id="instant-demo-btn"
-                type="button"
-                onClick={handleQuickDemo}
-                className="w-full bg-[#FDE7F3] text-[#8e004b] hover:bg-[#ffd9e2] font-semibold text-sm py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined text-base">bolt</span>
-                <span>Instant Demo Login (Riya Sharma)</span>
-              </button>
-
-              <button
-                id="guest-explore-btn"
-                type="button"
-                onClick={onContinueAsGuest}
-                className="w-full text-xs text-[#594047] hover:text-[#8e004b] py-1.5 transition-colors text-center"
-              >
-                Or continue exploring as Guest →
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </main>
