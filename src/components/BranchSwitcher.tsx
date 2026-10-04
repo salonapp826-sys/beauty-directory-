@@ -25,7 +25,7 @@ const TAG_CONFIG: Record<string, { label: string; bg: string; text: string; icon
     icon: 'spa',
   },
   Branch: {
-    label: 'Salon Branch',
+    label: 'Warehouse Location',
     bg: 'bg-blue-50',
     text: 'text-blue-700',
     icon: 'storefront',
@@ -108,7 +108,7 @@ export function BranchSwitcher({
               </span>
             </div>
             <h2 className="text-lg md:text-xl font-bold tracking-tight">
-              Salon Network & Location Selector
+              Business Network & Location Selector
             </h2>
             <p className="text-xs text-white/80 max-w-xl mt-0.5">
               Toggle active location to isolate branch order history, route wholesale dispatches, and manage tax GSTIN details.

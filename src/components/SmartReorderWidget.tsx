@@ -51,14 +51,14 @@ export function SmartReorderWidget({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="material-symbols-outlined text-2xl text-[#8e004b]">published_with_changes</span>
-            <h2 className="text-lg font-bold text-[#1c1b1b]">Smart Stock Usage & Reorder Alerts</h2>
+            <h2 className="text-lg font-bold text-[#1c1b1b]">Inventory & Low Stock Alerts</h2>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-600 text-white text-[10px] font-extrabold rounded-full shadow-2xs animate-pulse">
               <span className="material-symbols-outlined text-xs">notifications_active</span>
               <span>80%+ Usage Reached ({suggestions.length} Items)</span>
             </span>
           </div>
           <p className="text-xs text-[#594047] mt-1">
-            Automated consumption predictions based on your salon's past order frequency & usage cycles.
+            Automated stock predictions based on past wholesale order frequency & usage cycles.
           </p>
         </div>
 

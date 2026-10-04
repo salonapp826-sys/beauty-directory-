@@ -26,7 +26,7 @@ const TAG_CONFIG: Record<AddressTag, { label: string; bg: string; text: string; 
     icon: 'spa',
   },
   Branch: {
-    label: 'Salon Branch',
+    label: 'Warehouse Location',
     bg: 'bg-blue-50',
     text: 'text-blue-700',
     border: 'border-blue-200',
@@ -246,9 +246,9 @@ ${addr.addressLine2 ? `${addr.addressLine2}\n` : ''}${addr.landmark ? `Landmark:
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-[#E8E8E8]">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-[#1c1b1b]">Saved Salon Delivery Locations</h2>
+            <h2 className="text-lg font-bold text-[#1c1b1b]">Business / Warehouse Locations</h2>
             <span className="text-xs font-semibold bg-[#FDE7F3] text-[#8e004b] px-2.5 py-0.5 rounded-full border border-[#8e004b]/20">
-              {addresses.length} Branches
+              {addresses.length} Locations
             </span>
           </div>
           <p className="text-xs text-[#594047] mt-0.5">
@@ -316,12 +316,12 @@ ${addr.addressLine2 ? `${addr.addressLine2}\n` : ''}${addr.landmark ? `Landmark:
             className="bg-[#8e004b] hover:bg-[#b90064] text-white text-xs font-bold py-2 px-4 rounded-xl inline-flex items-center gap-1.5 transition-colors"
           >
             <span className="material-symbols-outlined text-sm">add</span>
-            <span>Add First Salon Branch</span>
+            <span>Add First Location</span>
           </button>
         </div>
       ) : filteredAddresses.length === 0 ? (
         <div className="text-center py-8 text-xs text-[#594047]">
-          No salon branches match your filter query "{searchQuery}".
+          No locations match your filter query "{searchQuery}".
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">

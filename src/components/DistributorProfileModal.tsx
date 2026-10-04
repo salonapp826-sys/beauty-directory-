@@ -1,5 +1,5 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
-import { Distributor, Product, DistributorReel } from '../types';
+import { Distributor, Product, DistributorReel, Order, OrderStatus, User, WarehouseLocation, DistributorOffer } from '../types';
 
 interface MockReview {
   salonName: string;
@@ -45,6 +45,9 @@ interface DistributorProfileModalProps {
   distributor: Distributor;
   products: Product[];
   reels: DistributorReel[];
+  orders?: Order[];
+  user?: User | null;
+  warehouseLocations?: WarehouseLocation[];
   onUploadReel: (newReel: DistributorReel) => void;
   onEditReel?: (updatedReel: DistributorReel) => void;
   onDeleteReel?: (reelId: string) => void;
@@ -55,6 +58,17 @@ interface DistributorProfileModalProps {
   onRequestQuote: (distributor: Distributor) => void;
   onClose: () => void;
   onAddProduct?: (newProduct: Product) => void;
+  onViewInvoice?: (order: Order) => void;
+  onUpdateOrderStatus?: (orderId: string, status: OrderStatus) => void;
+  onUpdateProductStock?: (productId: string, stockCount: number) => void;
+  onAddWarehouseLocation?: (loc: Omit<WarehouseLocation, 'id'>) => void;
+  onUpdateWarehouseLocation?: (loc: WarehouseLocation) => void;
+  onSetDefaultWarehouseLocation?: (id: string) => void;
+  onAssignDispatchLocation?: (orderId: string, locationId: string, locationName: string, status?: OrderStatus) => void;
+  distributorOffers?: DistributorOffer[];
+  onAddOffer?: (offer: Omit<DistributorOffer, 'id'>) => void;
+  onDeleteOffer?: (offerId: string) => void;
+  onToggleOfferStatus?: (offerId: string) => void;
 }
 
 const PRESET_THUMBNAILS = [
@@ -182,6 +196,9 @@ export function DistributorProfileModal({
   distributor,
   products,
   reels,
+  orders = [],
+  user = null,
+  warehouseLocations = [],
   onUploadReel,
   onEditReel,
   onDeleteReel,
@@ -192,8 +209,126 @@ export function DistributorProfileModal({
   onRequestQuote,
   onClose,
   onAddProduct,
+  onViewInvoice,
+  onUpdateOrderStatus,
+  onUpdateProductStock,
+  onAddWarehouseLocation,
+  onUpdateWarehouseLocation,
+  onSetDefaultWarehouseLocation,
+  onAssignDispatchLocation,
+  distributorOffers = [],
+  onAddOffer,
+  onDeleteOffer,
+  onToggleOfferStatus,
 }: DistributorProfileModalProps) {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'reels' | 'upload' | 'addProduct'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'reels' | 'upload' | 'addProduct' | 'orders' | 'inventory' | 'buyers' | 'sales' | 'warehouses' | 'offers'>('catalog');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('ALL');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState<string>('ALL');
+  const [selectedBuyer, setSelectedBuyer] = useState<any | null>(null);
+
+  const [isAddWhModalOpen, setIsAddWhModalOpen] = useState(false);
+  const [editingWh, setEditingWh] = useState<WarehouseLocation | null>(null);
+  const [whName, setWhName] = useState('');
+  const [whAddress, setWhAddress] = useState('');
+  const [whCity, setWhCity] = useState('');
+  const [whState, setWhState] = useState('');
+  const [whPincode, setWhPincode] = useState('');
+  const [whIsDefault, setWhIsDefault] = useState(false);
+
+  const [isAddOfferModalOpen, setIsAddOfferModalOpen] = useState(false);
+  const [offerTitle, setOfferTitle] = useState('');
+  const [offerDescription, setOfferDescription] = useState('');
+  const [offerType, setOfferType] = useState<'Product Discount' | 'Bulk Purchase Offer' | 'Limited-Time Deal'>('Product Discount');
+  const [offerProductId, setOfferProductId] = useState('');
+  const [offerDiscount, setOfferDiscount] = useState('15');
+  const [offerMinQty, setOfferMinQty] = useState('10');
+  const [offerValidUntil, setOfferValidUntil] = useState('2026-12-31');
+
+  const distributorOffersList = distributorOffers.filter(
+    (o) => o.distributorId === distributor.id || o.distributorId === 'dist-1'
+  );
+
+  const distributorWarehouses = warehouseLocations.filter(
+    (w) => w.distributorId === distributor.id || w.distributorId === 'dist-1'
+  );
+
+  const distributorProducts = products.filter(
+    (p) => p.distributorId === distributor.id || p.distributorName === distributor.name
+  );
+
+  const distributorOrders = orders.filter(o =>
+    o.distributorName.toLowerCase() === distributor.name.toLowerCase() ||
+    o.items.some(item => item.product.distributorId === distributor.id)
+  );
+
+  const filteredOrders = distributorOrders.filter(o => {
+    if (orderStatusFilter === 'ALL') return true;
+    return o.status.toLowerCase() === orderStatusFilter.toLowerCase();
+  });
+
+  const getStockCount = (p: Product) => {
+    if (p.stockCount !== undefined) return p.stockCount;
+    return 30;
+  };
+
+  const filteredInventory = distributorProducts.filter(p => {
+    const qty = getStockCount(p);
+    if (inventoryStatusFilter === 'IN_STOCK') return qty > 5;
+    if (inventoryStatusFilter === 'LOW_STOCK') return qty > 0 && qty <= 5;
+    if (inventoryStatusFilter === 'OUT_OF_STOCK') return qty === 0;
+    return true;
+  });
+
+  const inStockCount = distributorProducts.filter(p => getStockCount(p) > 5).length;
+  const lowStockCount = distributorProducts.filter(p => {
+    const q = getStockCount(p);
+    return q > 0 && q <= 5;
+  }).length;
+  const outOfStockCount = distributorProducts.filter(p => getStockCount(p) === 0).length;
+
+  // Sales & Buyers computations
+  const validOrders = distributorOrders.filter(o => o.status !== 'Cancelled');
+  const totalSales = validOrders.reduce((acc, o) => acc + o.total, 0);
+  const todaysSales = validOrders.length > 0 ? validOrders[0].total : 0;
+  const thisMonthsSales = totalSales;
+  const totalOrdersCount = validOrders.length;
+  const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalSales / totalOrdersCount) : 0;
+
+  const buyerMap = new Map<string, {
+    name: string;
+    type: string;
+    location: string;
+    orders: Order[];
+    totalSpent: number;
+    lastOrderDate: string;
+    latestStatus: string;
+  }>();
+
+  distributorOrders.forEach(order => {
+    const buyerName = order.shippingAddress?.recipientName || user?.salonName || 'Elite Salon & Spa Network';
+    const location = order.shippingAddress ? `${order.shippingAddress.city}, ${order.shippingAddress.state}` : 'Noida, UP';
+    const type = order.shippingAddress?.branchName?.includes('Spa') ? 'Luxury Spa' : 'Salon & Hair Lounge';
+
+    if (!buyerMap.has(buyerName)) {
+      buyerMap.set(buyerName, {
+        name: buyerName,
+        type,
+        location,
+        orders: [],
+        totalSpent: 0,
+        lastOrderDate: order.date,
+        latestStatus: order.status,
+      });
+    }
+
+    const b = buyerMap.get(buyerName)!;
+    b.orders.push(order);
+    if (order.status !== 'Cancelled') {
+      b.totalSpent += order.total;
+    }
+  });
+
+  const buyersList = Array.from(buyerMap.values());
 
   // B2B Add Product Form States
   const [newProdName, setNewProdName] = useState('');
@@ -334,11 +469,6 @@ export function DistributorProfileModal({
       r.distributorId === distributor.id ||
       r.distributor.toLowerCase().includes(distributor.name.toLowerCase()) ||
       distributor.name.toLowerCase().includes(r.distributor.toLowerCase())
-  );
-
-  // Products belonging to distributor
-  const distributorProducts = products.filter(
-    (p) => p.distributorId === distributor.id || p.distributorName === distributor.name
   );
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -670,6 +800,84 @@ export function DistributorProfileModal({
           >
             <span className="material-symbols-outlined text-base">movie</span>
             <span>Video Reels & Demos ({distributorReels.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('orders')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'orders'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">receipt_long</span>
+            <span>Wholesale Orders ({distributorOrders.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('inventory')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'inventory'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">warehouse</span>
+            <span>Stock & Inventory</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('buyers')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'buyers'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">groups</span>
+            <span>Buyers ({buyersList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('sales')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'sales'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">trending_up</span>
+            <span>Sales Summary</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('warehouses')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'warehouses'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">location_city</span>
+            <span>Business / Warehouses ({distributorWarehouses.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('offers')}
+            className={`py-3.5 px-4 font-bold text-xs transition-all border-b-2 flex items-center gap-2 ${
+              activeTab === 'offers'
+                ? 'border-[#8e004b] text-[#8e004b] bg-white'
+                : 'border-transparent text-[#594047] hover:text-[#1c1b1b]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">local_offer</span>
+            <span>Offers & Promotions ({distributorOffersList.length})</span>
           </button>
 
           <button
@@ -1693,6 +1901,561 @@ export function DistributorProfileModal({
               </form>
             </div>
           )}
+
+          {/* TAB 5: WHOLESALE ORDERS */}
+          {activeTab === 'orders' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#FCF9F8] border border-[#e5d5da] p-4 rounded-2xl">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#1c1b1b]">Wholesale Order Management</h3>
+                  <p className="text-xs text-[#594047] mt-0.5">Manage incoming salon bulk orders, review delivery statuses, and track invoice disbursements.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {['ALL', 'Processing', 'Dispatched', 'Delivered', 'Cancelled'].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setOrderStatusFilter(st)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${
+                        orderStatusFilter === st
+                          ? 'bg-[#8e004b] text-white shadow-xs'
+                          : 'bg-white text-[#594047] hover:bg-[#FDE7F3] border border-[#E8E8E8]'
+                      }`}
+                    >
+                      {st === 'ALL' ? 'All Orders' : st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-16 bg-[#FCF9F8] rounded-2xl border border-dashed border-[#e5d5da]">
+                  <span className="material-symbols-outlined text-4xl text-stone-400 mb-2">inbox</span>
+                  <h4 className="font-bold text-sm text-[#1c1b1b]">No Wholesale Orders Found</h4>
+                  <p className="text-xs text-stone-500 mt-1">Orders placed by salons and buyers for this distributor will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredOrders.map((order) => {
+                    const buyerName = order.shippingAddress?.recipientName || user?.salonName || 'Elite Salon & Spa Network';
+                    const branchName = order.shippingAddress?.branchName || 'Main Branch';
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => onViewInvoice?.(order)}
+                        className="bg-white border border-[#E8E8E8] hover:border-[#8e004b]/40 rounded-2xl p-4 transition-all cursor-pointer shadow-2xs hover:shadow-md space-y-3"
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-[#F0EDEC]">
+                          <div className="flex items-center gap-3">
+                            <span className="bg-[#FDE7F3] text-[#8e004b] font-black text-xs px-2.5 py-1 rounded-lg">
+                              {order.id}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-xs text-[#1c1b1b]">{buyerName} • <span className="text-stone-500 font-medium">{branchName}</span></h4>
+                              <p className="text-[10px] text-stone-400">Ordered on {order.date} • Invoice #{order.invoiceNumber}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                              order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :
+                              order.status === 'Cancelled' ? 'bg-rose-100 text-rose-800' :
+                              'bg-amber-100 text-amber-800 animate-pulse'
+                            }`}>
+                              {order.status}
+                            </span>
+                            {onUpdateOrderStatus && (
+                              <select
+                                value={order.status}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateOrderStatus(order.id, e.target.value as OrderStatus);
+                                }}
+                                className="text-[10px] font-bold bg-[#F0EDEC] text-[#1c1b1b] border border-[#E8E8E8] rounded-lg px-2 py-1 outline-hidden hover:border-[#8e004b]"
+                              >
+                                <option value="Processing">Processing</option>
+                                <option value="Dispatched">Dispatched</option>
+                                <option value="In Transit">In Transit</option>
+                                <option value="Out for Delivery">Out for Delivery</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Order Items */}
+                        <div className="space-y-2">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs py-1">
+                              <div className="flex items-center gap-2.5">
+                                <img src={item.product.image} alt={item.product.name} className="w-8 h-8 rounded-lg object-cover border border-[#E8E8E8]" />
+                                <div>
+                                  <p className="font-bold text-[#1c1b1b] line-clamp-1">{item.product.name}</p>
+                                  <p className="text-[10px] text-stone-500">Qty: {item.quantity} units</p>
+                                </div>
+                              </div>
+                              <span className="font-extrabold text-[#8e004b]">₹{(item.selectedTierPrice * item.quantity).toLocaleString('en-IN')}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center pt-3 border-t border-[#F0EDEC] text-xs">
+                          <span className="font-bold text-stone-500">Total Amount (incl. GST):</span>
+                          <span className="font-black text-sm text-[#1c1b1b]">₹{order.total.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: STOCK & INVENTORY */}
+          {activeTab === 'inventory' && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white border border-[#E8E8E8] p-4 rounded-2xl shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-stone-500 uppercase">In Stock Products</p>
+                    <p className="text-xl font-black text-emerald-700 mt-1">{inStockCount}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-3xl text-emerald-600 bg-emerald-50 p-2.5 rounded-xl">check_circle</span>
+                </div>
+                <div className="bg-white border border-[#E8E8E8] p-4 rounded-2xl shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-stone-500 uppercase">Low Stock Alerts</p>
+                    <p className="text-xl font-black text-amber-600 mt-1">{lowStockCount}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-3xl text-amber-600 bg-amber-50 p-2.5 rounded-xl">warning</span>
+                </div>
+                <div className="bg-white border border-[#E8E8E8] p-4 rounded-2xl shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-stone-500 uppercase">Out of Stock</p>
+                    <p className="text-xl font-black text-rose-600 mt-1">{outOfStockCount}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-3xl text-rose-600 bg-rose-50 p-2.5 rounded-xl">inventory</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#FCF9F8] border border-[#e5d5da] p-4 rounded-2xl">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#1c1b1b]">Catalog Stock & Inventory Control</h3>
+                  <p className="text-xs text-[#594047] mt-0.5">Real-time inventory levels connected directly with wholesale orders and salon purchases.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { id: 'ALL', label: 'All Items' },
+                    { id: 'IN_STOCK', label: 'In Stock' },
+                    { id: 'LOW_STOCK', label: 'Low Stock (≤5)' },
+                    { id: 'OUT_OF_STOCK', label: 'Out of Stock (0)' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setInventoryStatusFilter(f.id)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${
+                        inventoryStatusFilter === f.id
+                          ? 'bg-[#8e004b] text-white shadow-xs'
+                          : 'bg-white text-[#594047] hover:bg-[#FDE7F3] border border-[#E8E8E8]'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filteredInventory.length === 0 ? (
+                <div className="text-center py-16 bg-[#FCF9F8] rounded-2xl border border-dashed border-[#e5d5da]">
+                  <span className="material-symbols-outlined text-4xl text-stone-400 mb-2">warehouse</span>
+                  <h4 className="font-bold text-sm text-[#1c1b1b]">No Products Found in Inventory Filter</h4>
+                  <p className="text-xs text-stone-500 mt-1">Try switching the inventory filter or add new products using the '+ Add Product' tab.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredInventory.map((p) => {
+                    const currentStock = getStockCount(p);
+                    const isOut = currentStock === 0;
+                    const isLow = currentStock > 0 && currentStock <= 5;
+                    return (
+                      <div key={p.id} className="bg-white border border-[#E8E8E8] rounded-2xl p-4 flex gap-4 items-center shadow-2xs hover:border-[#8e004b]/40 transition-all">
+                        <img src={p.image} alt={p.name} className="w-16 h-16 rounded-xl object-cover border border-[#E8E8E8] shrink-0" />
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                              isOut ? 'bg-rose-100 text-rose-800' :
+                              isLow ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                              'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {isOut ? 'Out of Stock (0)' : isLow ? `Low Stock (${currentStock})` : `In Stock (${currentStock})`}
+                            </span>
+                            <span className="font-black text-xs text-[#8e004b]">₹{p.price.toLocaleString('en-IN')}</span>
+                          </div>
+                          <h4 className="font-bold text-xs text-[#1c1b1b] line-clamp-1">{p.name}</h4>
+                          <p className="text-[10px] text-stone-500">Brand: {p.brand} • MOQ: {p.minOrderQuantity} units</p>
+
+                          <div className="flex items-center justify-between pt-2">
+                            <span className="text-[10px] font-bold text-stone-600">Stock Units:</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextStock = Math.max(0, currentStock - 5);
+                                  onUpdateProductStock?.(p.id, nextStock);
+                                }}
+                                className="w-6 h-6 rounded-lg bg-[#F0EDEC] hover:bg-[#e5d5da] font-black text-xs flex items-center justify-center text-[#1c1b1b]"
+                              >
+                                -
+                              </button>
+                              <span className="font-black text-xs px-2 py-0.5 bg-[#FFF8FA] text-[#8e004b] rounded border border-[#FDE7F3]">
+                                {currentStock}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextStock = currentStock + 10;
+                                  onUpdateProductStock?.(p.id, nextStock);
+                                }}
+                                className="w-6 h-6 rounded-lg bg-[#F0EDEC] hover:bg-[#e5d5da] font-black text-xs flex items-center justify-center text-[#1c1b1b]"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 7: BUYERS & CUSTOMERS */}
+          {activeTab === 'buyers' && (
+            <div className="space-y-4">
+              <div className="bg-[#FCF9F8] border border-[#e5d5da] p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#1c1b1b]">Wholesale Buyers & Salon Network</h3>
+                  <p className="text-xs text-[#594047] mt-0.5">Verified salons, spas, and styling parlors that have placed orders with {distributor.name}.</p>
+                </div>
+                <span className="text-xs font-black bg-[#8e004b] text-white px-3 py-1.5 rounded-xl">
+                  {buyersList.length} Active Buyers
+                </span>
+              </div>
+
+              {buyersList.length === 0 ? (
+                <div className="text-center py-16 bg-[#FCF9F8] rounded-2xl border border-dashed border-[#e5d5da]">
+                  <span className="material-symbols-outlined text-4xl text-stone-400 mb-2">groups</span>
+                  <h4 className="font-bold text-sm text-[#1c1b1b]">No Active Buyers Found</h4>
+                  <p className="text-xs text-stone-500 mt-1">When salons or buyers place wholesale orders with this distributor, they will appear here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {buyersList.map((buyer, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedBuyer(buyer)}
+                      className="bg-white border border-[#E8E8E8] hover:border-[#8e004b]/50 rounded-2xl p-4 cursor-pointer shadow-2xs hover:shadow-md transition-all space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#FDE7F3] text-[#8e004b] font-black text-sm flex items-center justify-center border border-[#f8c5dd]">
+                            {buyer.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-[#1c1b1b]">{buyer.name}</h4>
+                            <p className="text-[10px] text-stone-500">{buyer.type} • {buyer.location}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {buyer.latestStatus}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#F0EDEC] text-xs">
+                        <div className="bg-[#FCF9F8] p-2 rounded-xl">
+                          <span className="text-[10px] text-stone-500 block">Total Orders</span>
+                          <span className="font-bold text-[#1c1b1b]">{buyer.orders.length} Orders</span>
+                        </div>
+                        <div className="bg-[#FCF9F8] p-2 rounded-xl">
+                          <span className="text-[10px] text-stone-500 block">Purchase Value</span>
+                          <span className="font-bold text-[#8e004b]">₹{buyer.totalSpent.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] text-stone-400 pt-1">
+                        <span>Last Order: {buyer.lastOrderDate}</span>
+                        <span className="text-[#8e004b] font-bold flex items-center gap-1">
+                          <span>View History</span>
+                          <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 9: BUSINESS / WAREHOUSE LOCATIONS */}
+          {activeTab === 'warehouses' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#FCF9F8] border border-[#e5d5da] p-4 rounded-2xl">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#1c1b1b]">Business Locations, Warehouses & Dispatch Hubs</h3>
+                  <p className="text-xs text-[#594047] mt-0.5">Manage multiple business addresses, fulfillment centers, and default dispatch locations.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingWh(null);
+                    setWhName('');
+                    setWhAddress('');
+                    setWhCity('');
+                    setWhState('');
+                    setWhPincode('');
+                    setWhIsDefault(distributorWarehouses.length === 0);
+                    setIsAddWhModalOpen(true);
+                  }}
+                  className="bg-[#8e004b] hover:bg-[#72003c] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 shrink-0"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  <span>+ Add Business / Warehouse Location</span>
+                </button>
+              </div>
+
+              {distributorWarehouses.length === 0 ? (
+                <div className="text-center py-16 bg-[#FCF9F8] rounded-2xl border border-dashed border-[#e5d5da]">
+                  <span className="material-symbols-outlined text-4xl text-stone-400 mb-2">location_city</span>
+                  <h4 className="font-bold text-sm text-[#1c1b1b]">No Warehouse Locations Added</h4>
+                  <p className="text-xs text-stone-500 mt-1">Add your warehouse or dispatch center to assign it to wholesale order fulfillments.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {distributorWarehouses.map((wh) => (
+                    <div key={wh.id} className="bg-white border border-[#E8E8E8] hover:border-[#8e004b]/40 rounded-2xl p-4 shadow-2xs space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="material-symbols-outlined text-xl text-[#8e004b] bg-[#FDE7F3] p-2 rounded-xl">warehouse</span>
+                          <div>
+                            <h4 className="font-bold text-xs text-[#1c1b1b]">{wh.name}</h4>
+                            <p className="text-[10px] text-stone-500">{wh.city}, {wh.state} - {wh.pincode}</p>
+                          </div>
+                        </div>
+                        {wh.isDefault ? (
+                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                            Default Dispatch Hub
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onSetDefaultWarehouseLocation?.(wh.id)}
+                            className="text-[10px] font-bold bg-[#F0EDEC] hover:bg-[#e5d5da] text-[#1c1b1b] px-2.5 py-1 rounded-lg transition-colors"
+                          >
+                            Set Default
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-stone-600 font-medium">📍 {wh.address}</p>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-[#F0EDEC] text-xs">
+                        <span className="text-[10px] font-bold text-stone-400">ID: {wh.id}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingWh(wh);
+                            setWhName(wh.name);
+                            setWhAddress(wh.address);
+                            setWhCity(wh.city);
+                            setWhState(wh.state);
+                            setWhPincode(wh.pincode);
+                            setWhIsDefault(wh.isDefault);
+                            setIsAddWhModalOpen(true);
+                          }}
+                          className="font-bold text-[#8e004b] hover:underline flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-xs">edit</span>
+                          <span>Edit Location</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 10: OFFERS & PROMOTIONS */}
+          {activeTab === 'offers' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#FCF9F8] border border-[#e5d5da] p-4 rounded-2xl">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#1c1b1b]">Distributor Offers, Bulk Deals & Limited-Time Discounts</h3>
+                  <p className="text-xs text-[#594047] mt-0.5">Create promotional discounts and bulk purchase rules scoped directly to your catalog.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfferTitle('');
+                    setOfferDescription('');
+                    setOfferType('Product Discount');
+                    setOfferProductId(distributorProducts[0]?.id || '');
+                    setOfferDiscount('15');
+                    setOfferMinQty('10');
+                    setOfferValidUntil('2026-12-31');
+                    setIsAddOfferModalOpen(true);
+                  }}
+                  className="bg-[#8e004b] hover:bg-[#72003c] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 shrink-0"
+                >
+                  <span className="material-symbols-outlined text-sm">local_offer</span>
+                  <span>+ Create New Offer / Deal</span>
+                </button>
+              </div>
+
+              {distributorOffersList.length === 0 ? (
+                <div className="text-center py-16 bg-[#FCF9F8] rounded-2xl border border-dashed border-[#e5d5da]">
+                  <span className="material-symbols-outlined text-4xl text-stone-400 mb-2">local_offer</span>
+                  <h4 className="font-bold text-sm text-[#1c1b1b]">No Active Offers or Promotions</h4>
+                  <p className="text-xs text-stone-500 mt-1">Create limited-time deals or bulk wholesale discounts to boost salon orders.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {distributorOffersList.map((offer) => (
+                    <div key={offer.id} className="bg-white border border-[#E8E8E8] hover:border-[#8e004b]/40 rounded-2xl p-4 shadow-2xs space-y-3 relative overflow-hidden">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="material-symbols-outlined text-xl text-[#8e004b] bg-[#FDE7F3] p-2 rounded-xl">local_offer</span>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[#8e004b] bg-[#FDE7F3] px-2 py-0.5 rounded-md">
+                              {offer.offerType}
+                            </span>
+                            <h4 className="font-extrabold text-xs text-[#1c1b1b] mt-1">{offer.title}</h4>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${offer.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                            {offer.isActive ? 'Active' : 'Paused'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-stone-600 font-medium">{offer.description}</p>
+
+                      <div className="bg-[#FCF9F8] p-2.5 rounded-xl border border-[#F0EDEC] text-xs space-y-1">
+                        <div className="flex justify-between text-stone-600 font-medium">
+                          <span>Target Product:</span>
+                          <span className="font-bold text-[#1c1b1b] truncate max-w-[200px]">{offer.productName}</span>
+                        </div>
+                        {offer.discountPercentage && (
+                          <div className="flex justify-between text-stone-600 font-medium">
+                            <span>Discount Benefit:</span>
+                            <span className="font-bold text-emerald-700">{offer.discountPercentage}% OFF</span>
+                          </div>
+                        )}
+                        {offer.minBulkQty && (
+                          <div className="flex justify-between text-stone-600 font-medium">
+                            <span>Minimum Bulk Qty:</span>
+                            <span className="font-bold text-blue-700">{offer.minBulkQty}+ Units</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-stone-600 font-medium">
+                          <span>Valid Until:</span>
+                          <span className="font-bold text-stone-700">{offer.validUntil}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-[#F0EDEC] text-xs">
+                        <button
+                          type="button"
+                          onClick={() => onToggleOfferStatus?.(offer.id)}
+                          className="font-bold text-stone-600 hover:text-[#1c1b1b] flex items-center gap-1 bg-[#F0EDEC] px-2.5 py-1 rounded-lg"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            {offer.isActive ? 'pause_circle' : 'play_circle'}
+                          </span>
+                          <span>{offer.isActive ? 'Pause Offer' : 'Activate'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteOffer?.(offer.id)}
+                          className="font-bold text-rose-600 hover:underline flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-xs">delete</span>
+                          <span>Delete Offer</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selected Buyer Detail Modal */}
+          {selectedBuyer && (
+            <div className="fixed inset-0 z-70 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl border border-[#E8E8E8] space-y-5 relative">
+                <button
+                  onClick={() => setSelectedBuyer(null)}
+                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#F0EDEC] hover:bg-[#e5d5da] text-[#1c1b1b] flex items-center justify-center transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+
+                <div className="flex items-center gap-3.5 pb-4 border-b border-[#F0EDEC]">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FDE7F3] text-[#8e004b] font-black text-lg flex items-center justify-center border border-[#f8c5dd]">
+                    {selectedBuyer.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-[#1c1b1b]">{selectedBuyer.name}</h3>
+                    <p className="text-xs text-stone-500">{selectedBuyer.type} • {selectedBuyer.location}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#FCF9F8] p-3 rounded-xl border border-[#E8E8E8]">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold">Total Lifetime Spend</span>
+                    <p className="text-lg font-black text-[#8e004b] mt-0.5">₹{selectedBuyer.totalSpent.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-[#FCF9F8] p-3 rounded-xl border border-[#E8E8E8]">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold">Total Orders Placed</span>
+                    <p className="text-lg font-black text-[#1c1b1b] mt-0.5">{selectedBuyer.orders.length} Orders</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-extrabold text-xs text-[#1c1b1b] uppercase tracking-wider">Order History with {distributor.name}</h4>
+                  <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+                    {selectedBuyer.orders.map((ord: Order) => (
+                      <div key={ord.id} onClick={() => { setSelectedBuyer(null); onViewInvoice?.(ord); }} className="bg-[#FCF9F8] hover:bg-[#FDE7F3]/30 border border-[#E8E8E8] rounded-2xl p-3.5 cursor-pointer transition-all space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-black text-xs text-[#8e004b]">{ord.id}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{ord.status}</span>
+                        </div>
+                        <p className="text-[11px] text-stone-500">Ordered on {ord.date} • Invoice #{ord.invoiceNumber}</p>
+                        <div className="space-y-1 pt-1 border-t border-[#E8E8E8]">
+                          {ord.items.map((it: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs">
+                              <span className="text-stone-700 font-medium line-clamp-1">{it.product.name} (x{it.quantity})</span>
+                              <span className="font-bold text-[#1c1b1b]">₹{(it.selectedTierPrice * it.quantity).toLocaleString('en-IN')}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-[#E8E8E8] text-xs">
+                          <span className="font-bold text-stone-500">Total Amount:</span>
+                          <span className="font-black text-sm text-[#1c1b1b]">₹{ord.total.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Video Reel Player Modal */}
@@ -2133,6 +2896,303 @@ export function DistributorProfileModal({
                   >
                     <span className="material-symbols-outlined text-sm">save</span>
                     <span>Save Changes</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Warehouse Modal */}
+        {isAddWhModalOpen && (
+          <div className="fixed inset-0 z-70 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl p-6 max-w-lg w-full relative shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-[#E8E8E8]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#FDE7F3] text-[#8e004b] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-lg">warehouse</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#1c1b1b]">
+                      {editingWh ? 'Edit Warehouse Location' : 'Add New Business & Warehouse Location'}
+                    </h3>
+                    <p className="text-xs text-[#594047]">Configure dispatch and fulfillment centers</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddWhModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#F0EDEC] hover:bg-[#e5d5da] text-stone-700 flex items-center justify-center transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!whName.trim() || !whAddress.trim() || !whCity.trim()) return;
+                  if (editingWh) {
+                    onUpdateWarehouseLocation?.({
+                      ...editingWh,
+                      name: whName,
+                      address: whAddress,
+                      city: whCity,
+                      state: whState || 'Maharashtra',
+                      pincode: whPincode || '400001',
+                      isDefault: whIsDefault,
+                    });
+                  } else {
+                    onAddWarehouseLocation?.({
+                      distributorId: distributor.id,
+                      name: whName,
+                      address: whAddress,
+                      city: whCity,
+                      state: whState || 'Maharashtra',
+                      pincode: whPincode || '400001',
+                      isDefault: whIsDefault || distributorWarehouses.length === 0,
+                    });
+                  }
+                  setIsAddWhModalOpen(false);
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Location / Warehouse Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={whName}
+                    onChange={(e) => setWhName(e.target.value)}
+                    placeholder="e.g. South Region Fulfillment Center"
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Street Address *</label>
+                  <input
+                    type="text"
+                    required
+                    value={whAddress}
+                    onChange={(e) => setWhAddress(e.target.value)}
+                    placeholder="e.g. Plot 12, Industrial Area Phase 2"
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#1c1b1b] block">City *</label>
+                    <input
+                      type="text"
+                      required
+                      value={whCity}
+                      onChange={(e) => setWhCity(e.target.value)}
+                      placeholder="Mumbai"
+                      className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#1c1b1b] block">State</label>
+                    <input
+                      type="text"
+                      value={whState}
+                      onChange={(e) => setWhState(e.target.value)}
+                      placeholder="Maharashtra"
+                      className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#1c1b1b] block">Pincode</label>
+                    <input
+                      type="text"
+                      value={whPincode}
+                      onChange={(e) => setWhPincode(e.target.value)}
+                      placeholder="400001"
+                      className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="whDefaultCheck"
+                    checked={whIsDefault}
+                    onChange={(e) => setWhIsDefault(e.target.checked)}
+                    className="w-4 h-4 accent-[#8e004b] rounded cursor-pointer"
+                  />
+                  <label htmlFor="whDefaultCheck" className="text-xs font-bold text-[#1c1b1b] cursor-pointer">
+                    Set as Default Dispatch Hub for Wholesale Orders
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E8E8E8]">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddWhModalOpen(false)}
+                    className="px-4 py-2 bg-[#F0EDEC] hover:bg-[#e5d5da] text-stone-700 font-bold text-xs rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#8e004b] hover:bg-[#72003c] text-white font-bold text-xs rounded-xl shadow-xs transition-all"
+                  >
+                    {editingWh ? 'Save Changes' : 'Add Location'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create Offer / Promotion Modal */}
+        {isAddOfferModalOpen && (
+          <div className="fixed inset-0 z-70 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl p-6 max-w-lg w-full relative shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-[#E8E8E8]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#FDE7F3] text-[#8e004b] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-lg">local_offer</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#1c1b1b]">Create New Distributor Offer</h3>
+                    <p className="text-xs text-[#594047]">Configure discounts or bulk deals for your catalog</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddOfferModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#F0EDEC] hover:bg-[#e5d5da] text-stone-700 flex items-center justify-center transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!offerTitle.trim() || !offerProductId) return;
+                  const selectedProd = distributorProducts.find((p) => p.id === offerProductId);
+                  onAddOffer?.({
+                    distributorId: distributor.id,
+                    productId: offerProductId,
+                    productName: selectedProd ? selectedProd.name : 'Selected Product',
+                    offerType,
+                    title: offerTitle,
+                    description: offerDescription || `${offerDiscount}% discount special offer on wholesale purchase.`,
+                    discountPercentage: Number(offerDiscount) || 15,
+                    minBulkQty: offerType === 'Bulk Purchase Offer' ? Number(offerMinQty) || 10 : undefined,
+                    validUntil: offerValidUntil || '2026-12-31',
+                    isActive: true,
+                  });
+                  setIsAddOfferModalOpen(false);
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Offer Type *</label>
+                  <select
+                    value={offerType}
+                    onChange={(e) => setOfferType(e.target.value as any)}
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                  >
+                    <option value="Product Discount">Product Discount</option>
+                    <option value="Bulk Purchase Offer">Bulk Purchase Offer</option>
+                    <option value="Limited-Time Deal">Limited-Time Deal</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Select Product from Catalog *</label>
+                  <select
+                    value={offerProductId}
+                    onChange={(e) => setOfferProductId(e.target.value)}
+                    required
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                  >
+                    <option value="">-- Choose Product --</option>
+                    {distributorProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (₹{p.price})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Offer Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={offerTitle}
+                    onChange={(e) => setOfferTitle(e.target.value)}
+                    placeholder="e.g. Festival Salon Special: 15% Off"
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#1c1b1b] block">Discount Percentage (%)</label>
+                    <input
+                      type="number"
+                      value={offerDiscount}
+                      onChange={(e) => setOfferDiscount(e.target.value)}
+                      placeholder="15"
+                      className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                    />
+                  </div>
+                  {offerType === 'Bulk Purchase Offer' ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-[#1c1b1b] block">Min Bulk Qty</label>
+                      <input
+                        type="number"
+                        value={offerMinQty}
+                        onChange={(e) => setOfferMinQty(e.target.value)}
+                        placeholder="10"
+                        className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-[#1c1b1b] block">Valid Until Date</label>
+                      <input
+                        type="date"
+                        value={offerValidUntil}
+                        onChange={(e) => setOfferValidUntil(e.target.value)}
+                        className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[#1c1b1b] block">Offer Description</label>
+                  <textarea
+                    rows={2}
+                    value={offerDescription}
+                    onChange={(e) => setOfferDescription(e.target.value)}
+                    placeholder="Describe benefit for salon owners..."
+                    className="w-full bg-[#FCF9F8] border border-[#E8E8E8] rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:border-[#8e004b] outline-none resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E8E8E8]">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddOfferModalOpen(false)}
+                    className="px-4 py-2 bg-[#F0EDEC] hover:bg-[#e5d5da] text-stone-700 font-bold text-xs rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#8e004b] hover:bg-[#72003c] text-white font-bold text-xs rounded-xl shadow-xs transition-all"
+                  >
+                    Publish Offer
                   </button>
                 </div>
               </form>

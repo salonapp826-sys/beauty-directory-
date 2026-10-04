@@ -28,6 +28,7 @@ export interface Product {
   reviewsCount: number;
   description: string;
   inStock: boolean;
+  stockCount?: number;
   minOrderQuantity: number;
   bulkTiers: {
     minQty: number;
@@ -131,7 +132,33 @@ export interface OrderTimelineStep {
   current?: boolean;
 }
 
-export type OrderStatus = 'Processing' | 'Dispatched' | 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+export type OrderStatus = 'Processing' | 'Ready to Dispatch' | 'Dispatched' | 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Delivery Failed' | 'Cancelled';
+
+export interface DistributorOffer {
+  id: string;
+  distributorId: string;
+  productId: string;
+  productName: string;
+  offerType: 'Product Discount' | 'Bulk Purchase Offer' | 'Limited-Time Deal';
+  title: string;
+  description: string;
+  discountPercentage?: number;
+  promotionalPrice?: number;
+  minBulkQty?: number;
+  validUntil: string;
+  isActive: boolean;
+}
+
+export interface WarehouseLocation {
+  id: string;
+  distributorId: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+}
 
 export interface Order {
   id: string;
@@ -149,6 +176,8 @@ export interface Order {
   courierPartner?: string;
   estimatedDelivery?: string;
   statusTimeline?: OrderTimelineStep[];
+  dispatchLocationId?: string;
+  dispatchLocationName?: string;
 }
 
 export type ActiveTab = 'home' | 'directory' | 'shop' | 'profile' | 'booking';

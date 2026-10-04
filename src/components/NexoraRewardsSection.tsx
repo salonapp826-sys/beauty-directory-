@@ -324,7 +324,7 @@ export function NexoraRewardsSection({ user, orders, onRedeemReward }: NexoraRew
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#594047]">Current Salon Tier</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#594047]">Distributor Business Benefits / Volume Rewards</span>
                 <span className="text-xs font-bold bg-white/80 backdrop-blur-xs text-[#1c1b1b] px-2 py-0.5 rounded-md border border-black/10">
                   {currentTier.multiplier}
                 </span>

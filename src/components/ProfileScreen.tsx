@@ -6,6 +6,7 @@ import { TrackShipmentTimeline } from './TrackShipmentTimeline';
 import { TrackShipmentModal } from './TrackShipmentModal';
 import { RateOrderModal, OrderRatingData } from './RateOrderModal';
 import { NexoraRewardsSection } from './NexoraRewardsSection';
+import { SalonInsightsSection } from './SalonInsightsSection';
 import { BranchSwitcher } from './BranchSwitcher';
 import { OrderHistoryEmptyState } from './EmptyState';
 import { QuickSupportCard } from './QuickSupportCard';
@@ -311,10 +312,10 @@ export function ProfileScreen({
       {/* Edit Form Modal/Section */}
       {isEditing && (
         <form onSubmit={handleSave} className="bg-[#F0EDEC] p-6 rounded-2xl border border-[#E8E8E8] animate-fade-in">
-          <h3 className="font-bold text-sm text-[#1c1b1b] mb-4">Edit Salon & Tax Credentials</h3>
+          <h3 className="font-bold text-sm text-[#1c1b1b] mb-4">Edit Business & Tax Credentials</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-[#594047] block mb-1">Salon / Business Name</label>
+              <label className="text-xs font-semibold text-[#594047] block mb-1">Business Name</label>
               <input
                 value={salonName}
                 onChange={(e) => setSalonName(e.target.value)}
@@ -456,6 +457,9 @@ export function ProfileScreen({
 
       {/* Nexora Rewards, Loyalty Tiers, and Dynamic Discounts Section */}
       <NexoraRewardsSection user={user} orders={orders} />
+
+      {/* Salon Spend & Product Insights Section */}
+      <SalonInsightsSection orders={orders} />
 
       {/* Saved Addresses / Salon Branches Management */}
       <SavedAddressesSection

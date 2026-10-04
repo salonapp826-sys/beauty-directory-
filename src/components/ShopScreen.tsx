@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, MouseEvent } from 'react';
 import { PRODUCTS_DATA, DISTRIBUTORS_DATA } from '../data/mockData';
-import { Product, Distributor } from '../types';
+import { Product, Distributor, DistributorOffer } from '../types';
 import { ProductCompareModal } from './ProductCompareModal';
 
 interface ShopScreenProps {
@@ -16,6 +16,7 @@ interface ShopScreenProps {
   onToggleWishlist?: (product: Product) => void;
   onOpenDistributorProfile?: (distributor: Distributor) => void;
   onBackToDirectory?: () => void;
+  distributorOffers?: DistributorOffer[];
 }
 
 export function ShopScreen({
@@ -31,6 +32,7 @@ export function ShopScreen({
   onToggleWishlist,
   onOpenDistributorProfile,
   onBackToDirectory,
+  distributorOffers = [],
 }: ShopScreenProps) {
   const [activeCategory, setActiveCategory] = useState<string>(
     selectedCategoryFilter || 'All'
@@ -618,139 +620,161 @@ export function ShopScreen({
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-5">
-              {filteredProducts.map((product) => (
-                <div
-                  id={`shop-product-${product.id}`}
-                  key={product.id}
-                  onClick={() => onSelectProduct(product)}
-                  className="bg-white rounded-2xl border border-[#E8E8E8] hover:border-[#8e004b]/50 hover:shadow-lg transition-all duration-200 p-3 md:p-4 flex flex-col justify-between cursor-pointer group"
-                >
-                  <div>
-                    {/* Image */}
-                    <div className="relative w-full aspect-square rounded-xl bg-[#fdf8f8] overflow-hidden mb-3">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {product.isNew && (
-                        <span className="absolute top-2 left-2 bg-[#FDE7F3] text-[#8e004b] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#8e004b]/20">
-                          New
-                        </span>
-                      )}
-                      {product.discountBadge && !product.isNew && (
-                        <span className="absolute top-2 left-2 bg-[#8e004b] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
-                          {product.discountBadge}
-                        </span>
-                      )}
+              {filteredProducts.map((product) => {
+                const activeOffer = distributorOffers.find(
+                  (o) => o.isActive && (o.productId === product.id || o.productName.toLowerCase() === product.name.toLowerCase())
+                );
+                const discountPct = activeOffer?.discountPercentage || 0;
+                const effectivePrice = discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+                const originalPrice = discountPct > 0 ? product.price : product.originalPrice;
+                const badgeLabel = activeOffer 
+                  ? (activeOffer.offerType === 'Limited-Time Deal' ? 'Limited Time Deal' : activeOffer.offerType === 'Bulk Purchase Offer' ? 'Bulk Savings' : `${discountPct}% Off Deal`)
+                  : product.discountBadge;
 
-                      {/* Wishlist Button */}
-                  {onToggleWishlist && (
-                    <button
-                      id={`shop-wishlist-toggle-${product.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleWishlist(product);
-                      }}
-                      className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xs z-10 ${
-                        wishlistIds.includes(product.id)
-                          ? 'bg-[#8e004b] text-white'
-                          : 'bg-white/80 hover:bg-white text-[#594047] hover:text-[#8e004b]'
-                      }`}
-                      title={wishlistIds.includes(product.id) ? 'Remove from Wishlist' : 'Save to Wishlist'}
-                    >
-                      <span className="material-symbols-outlined text-sm block">
-                        {wishlistIds.includes(product.id) ? 'favorite' : 'favorite_border'}
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Compare Toggle Button */}
-                  <button
-                    id={`shop-compare-toggle-${product.id}`}
-                    onClick={(e) => handleToggleCompare(e, product)}
-                    className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-md transition-all z-10 flex items-center gap-1 active:scale-95 ${
-                      selectedCompareIds.includes(product.id)
-                        ? 'bg-[#8e004b] text-white shadow-xs ring-1 ring-white/50'
-                        : 'bg-white/90 hover:bg-white text-[#1c1b1b] border border-black/10 shadow-2xs'
-                    }`}
-                    title="Add to comparison"
+                return (
+                  <div
+                    id={`shop-product-${product.id}`}
+                    key={product.id}
+                    onClick={() => onSelectProduct(product)}
+                    className="bg-white rounded-2xl border border-[#E8E8E8] hover:border-[#8e004b]/50 hover:shadow-lg transition-all duration-200 p-3 md:p-4 flex flex-col justify-between cursor-pointer group"
                   >
-                    <span className="material-symbols-outlined text-[12px] leading-none">
-                      {selectedCompareIds.includes(product.id) ? 'check_box' : 'check_box_outline_blank'}
-                    </span>
-                    <span>{selectedCompareIds.includes(product.id) ? 'Comparing' : 'Compare'}</span>
-                  </button>
+                    <div>
+                      {/* Image */}
+                      <div className="relative w-full aspect-square rounded-xl bg-[#fdf8f8] overflow-hidden mb-3">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {activeOffer ? (
+                          <span className="absolute top-2 left-2 bg-gradient-to-r from-rose-700 to-[#8e004b] text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-md z-10 animate-pulse">
+                            {badgeLabel}
+                          </span>
+                        ) : product.isNew ? (
+                          <span className="absolute top-2 left-2 bg-[#FDE7F3] text-[#8e004b] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#8e004b]/20 z-10">
+                            New
+                          </span>
+                        ) : product.discountBadge ? (
+                          <span className="absolute top-2 left-2 bg-[#8e004b] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs z-10">
+                            {product.discountBadge}
+                          </span>
+                        ) : null}
 
-                  <span className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-md">
-                    {product.salonMarginPercent}% Salon Margin
-                  </span>
-                </div>
+                        {/* Wishlist Button */}
+                        {onToggleWishlist && (
+                          <button
+                            id={`shop-wishlist-toggle-${product.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleWishlist(product);
+                            }}
+                            className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-2xs z-10 ${
+                              wishlistIds.includes(product.id)
+                                ? 'bg-[#8e004b] text-white'
+                                : 'bg-white/80 hover:bg-white text-[#594047] hover:text-[#8e004b]'
+                            }`}
+                            title={wishlistIds.includes(product.id) ? 'Remove from Wishlist' : 'Save to Wishlist'}
+                          >
+                            <span className="material-symbols-outlined text-sm block">
+                              {wishlistIds.includes(product.id) ? 'favorite' : 'favorite_border'}
+                            </span>
+                          </button>
+                        )}
 
-                {/* Info */}
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#8e004b]">
-                  {product.category}
-                </span>
-                <h3 className="text-sm md:text-base font-bold text-[#1c1b1b] line-clamp-1 group-hover:text-[#8e004b] transition-colors mt-0.5">
-                  {product.name}
-                </h3>
-                <p className="text-xs text-[#594047] truncate">{product.brand}</p>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const matchedDist = DISTRIBUTORS_DATA.find(
-                      (d) => d.id === product.distributorId || d.name === product.distributorName
-                    );
-                    if (matchedDist && onOpenDistributorProfile) {
-                      onOpenDistributorProfile(matchedDist);
-                    }
-                  }}
-                  className="text-[11px] text-[#0150d6] hover:text-[#8e004b] hover:underline font-bold truncate mt-1 text-left block w-full focus:outline-none"
-                  title={`View ${product.distributorName} Profile`}
-                >
-                  By {product.distributorName}
-                </button>
+                        {/* Compare Toggle Button */}
+                        <button
+                          id={`shop-compare-toggle-${product.id}`}
+                          onClick={(e) => handleToggleCompare(e, product)}
+                          className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-md transition-all z-10 flex items-center gap-1 active:scale-95 ${
+                            selectedCompareIds.includes(product.id)
+                              ? 'bg-[#8e004b] text-white shadow-xs ring-1 ring-white/50'
+                              : 'bg-white/90 hover:bg-white text-[#1c1b1b] border border-black/10 shadow-2xs'
+                          }`}
+                          title="Add to comparison"
+                        >
+                          <span className="material-symbols-outlined text-[12px] leading-none">
+                            {selectedCompareIds.includes(product.id) ? 'check_box' : 'check_box_outline_blank'}
+                          </span>
+                          <span>{selectedCompareIds.includes(product.id) ? 'Comparing' : 'Compare'}</span>
+                        </button>
 
-                {/* Bulk Tiers indicator */}
-                <div className="bg-[#F0EDEC] p-2 rounded-lg mt-2 text-[10px] text-[#594047] flex justify-between items-center">
-                  <span>Bulk Tier:</span>
-                  <span className="font-semibold text-[#8e004b]">
-                    Up to {product.bulkTiers[product.bulkTiers.length - 1].discountPercent}% off
-                  </span>
-                </div>
-              </div>
+                        <span className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-md">
+                          {product.salonMarginPercent}% Salon Margin
+                        </span>
+                      </div>
 
-              {/* Price & Action */}
-              <div className="pt-3 mt-3 border-t border-[#E8E8E8] flex justify-between items-center">
-                <div>
-                  <span className="text-sm md:text-base font-bold text-[#8e004b]">
-                    ₹{product.price.toLocaleString('en-IN')}
-                  </span>
-                  {product.originalPrice && (
-                    <span className="text-[10px] text-[#594047] line-through block">
-                      ₹{product.originalPrice.toLocaleString('en-IN')}
-                    </span>
-                  )}
-                </div>
+                      {/* Info */}
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8e004b]">
+                        {product.category}
+                      </span>
+                      <h3 className="text-sm md:text-base font-bold text-[#1c1b1b] line-clamp-1 group-hover:text-[#8e004b] transition-colors mt-0.5">
+                        {product.name}
+                      </h3>
+                      <p className="text-xs text-[#594047] truncate">{product.brand}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const matchedDist = DISTRIBUTORS_DATA.find(
+                            (d) => d.id === product.distributorId || d.name === product.distributorName
+                          );
+                          if (matchedDist && onOpenDistributorProfile) {
+                            onOpenDistributorProfile(matchedDist);
+                          }
+                        }}
+                        className="text-[11px] text-[#0150d6] hover:text-[#8e004b] hover:underline font-bold truncate mt-1 text-left block w-full focus:outline-none"
+                        title={`View ${product.distributorName} Profile`}
+                      >
+                        By {product.distributorName}
+                      </button>
 
-                <button
-                  id={`shop-add-btn-${product.id}`}
-                  onClick={(e) => handleQuickAdd(e, product)}
-                  className={`p-2 md:p-2.5 rounded-xl transition-all active:scale-90 flex items-center justify-center ${
-                    addedProductId === product.id
-                      ? 'bg-green-600 text-white'
-                      : 'bg-[#8e004b] hover:bg-[#b90064] text-white shadow-xs'
-                  }`}
-                  title="Add to Bag"
-                >
-                  <span className="material-symbols-outlined text-sm md:text-base">
-                    {addedProductId === product.id ? 'check' : 'add_shopping_cart'}
-                  </span>
-                </button>
-              </div>
-            </div>
-          ))}
+                      {/* Bulk Tiers indicator */}
+                      <div className="bg-[#F0EDEC] p-2 rounded-lg mt-2 text-[10px] text-[#594047] flex justify-between items-center">
+                        <span>Bulk Tier:</span>
+                        <span className="font-semibold text-[#8e004b]">
+                          Up to {product.bulkTiers[product.bulkTiers.length - 1].discountPercent}% off
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Price & Action */}
+                    <div className="pt-3 mt-3 border-t border-[#E8E8E8] flex justify-between items-center">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm md:text-base font-extrabold text-[#8e004b]">
+                            ₹{effectivePrice.toLocaleString('en-IN')}
+                          </span>
+                          {(discountPct > 0 || originalPrice) && (
+                            <span className="text-xs text-stone-400 line-through">
+                              ₹{(originalPrice || product.price).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                        {discountPct > 0 && (
+                          <span className="text-[9px] font-bold text-emerald-700 block">
+                            {badgeLabel} ({discountPct}% OFF)
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        id={`shop-add-btn-${product.id}`}
+                        onClick={(e) => handleQuickAdd(e, product)}
+                        className={`p-2 md:p-2.5 rounded-xl transition-all active:scale-90 flex items-center justify-center ${
+                          addedProductId === product.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-[#8e004b] hover:bg-[#b90064] text-white shadow-xs'
+                        }`}
+                        title="Add to Bag"
+                      >
+                        <span className="material-symbols-outlined text-sm md:text-base">
+                          {addedProductId === product.id ? 'check' : 'add_shopping_cart'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
         </div>
       )}
         </main>

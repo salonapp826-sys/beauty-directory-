@@ -5,6 +5,9 @@ import {
   CartItem,
   User,
   Order,
+  OrderStatus,
+  WarehouseLocation,
+  DistributorOffer,
   ActiveTab,
   AppScreen,
   DistributorReel,
@@ -243,7 +246,148 @@ export default function App() {
 
   const handleOrderPlaced = (order: Order) => {
     setOrders((prev) => [order, ...prev]);
+    // Connect order items to product inventory (stock deduction)
+    setProducts((prevProducts) =>
+      prevProducts.map((p) => {
+        const orderedItem = order.items.find((item) => item.product.id === p.id);
+        if (orderedItem) {
+          const currentStock = p.stockCount !== undefined ? p.stockCount : 30;
+          const newStock = Math.max(0, currentStock - orderedItem.quantity);
+          return {
+            ...p,
+            stockCount: newStock,
+            inStock: newStock > 0,
+          };
+        }
+        return p;
+      })
+    );
     setSelectedInvoiceOrder(order);
+  };
+
+  const handleUpdateProductStock = (productId: string, stockCount: number) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, stockCount, inStock: stockCount > 0 } : p))
+    );
+  };
+
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+    );
+  };
+
+  const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([
+    {
+      id: 'wh-1',
+      distributorId: 'dist-1',
+      name: 'Main Central Warehouse & Dispatch Hub',
+      address: 'Plot 42, Sector 18 Industrial Area',
+      city: 'Noida',
+      state: 'Uttar Pradesh',
+      pincode: '201301',
+      isDefault: true,
+    },
+    {
+      id: 'wh-2',
+      distributorId: 'dist-1',
+      name: 'North Region Fulfillment Center',
+      address: '14/3 Okhla Phase 3',
+      city: 'New Delhi',
+      state: 'Delhi',
+      pincode: '110020',
+      isDefault: false,
+    },
+  ]);
+
+  const handleAddWarehouseLocation = (loc: Omit<WarehouseLocation, 'id'>) => {
+    const newLoc: WarehouseLocation = {
+      ...loc,
+      id: `wh-${Date.now()}`,
+    };
+    setWarehouseLocations((prev) => [newLoc, ...prev]);
+  };
+
+  const handleUpdateWarehouseLocation = (updated: WarehouseLocation) => {
+    setWarehouseLocations((prev) =>
+      prev.map((l) => (l.id === updated.id ? updated : l))
+    );
+  };
+
+  const handleSetDefaultWarehouseLocation = (id: string) => {
+    setWarehouseLocations((prev) =>
+      prev.map((l) => ({ ...l, isDefault: l.id === id }))
+    );
+  };
+
+  const [distributorOffers, setDistributorOffers] = useState<DistributorOffer[]>([
+    {
+      id: 'off-1',
+      distributorId: 'dist-1',
+      productId: 'prod-1',
+      productName: "L'Oréal Professionnel Vitamino Color Shampoo (1500ml)",
+      offerType: 'Limited-Time Deal',
+      title: 'Festive Salon Special: 15% Off',
+      description: 'Special wholesale discount for festival stock-up.',
+      discountPercentage: 15,
+      validUntil: '2026-10-31',
+      isActive: true,
+    },
+    {
+      id: 'off-2',
+      distributorId: 'dist-1',
+      productId: 'prod-2',
+      productName: 'Schwarzkopf Professional Bonacure Repair Rescue',
+      offerType: 'Bulk Purchase Offer',
+      title: 'Bulk Salon Pack: Buy 10 Get Extra 10% Off',
+      description: 'Ideal for large salon chains. Minimum 10 units required.',
+      minBulkQty: 10,
+      discountPercentage: 10,
+      validUntil: '2026-11-15',
+      isActive: true,
+    },
+  ]);
+
+  const handleAddOffer = (offer: Omit<DistributorOffer, 'id'>) => {
+    const newOffer: DistributorOffer = {
+      ...offer,
+      id: `off-${Date.now()}`,
+    };
+    setDistributorOffers((prev) => [newOffer, ...prev]);
+  };
+
+  const handleDeleteOffer = (offerId: string) => {
+    setDistributorOffers((prev) => prev.filter((o) => o.id !== offerId));
+  };
+
+  const handleToggleOfferStatus = (offerId: string) => {
+    setDistributorOffers((prev) =>
+      prev.map((o) => (o.id === offerId ? { ...o, isActive: !o.isActive } : o))
+    );
+  };
+
+  const handleAssignDispatchLocation = (orderId: string, locationId: string, locationName: string, status?: OrderStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            dispatchLocationId: locationId,
+            dispatchLocationName: locationName,
+            ...(status ? { status } : {}),
+            statusTimeline: [
+              { title: 'Order Placed', time: '10:30 AM', description: 'Order received from salon', completed: true },
+              { title: 'Confirmed', time: '10:35 AM', description: 'Distributor verified payment & stock', completed: true },
+              { title: 'Packed', time: '11:15 AM', description: `Items packed at ${locationName}`, completed: true },
+              { title: 'Dispatched', time: '12:00 PM', description: `Dispatched from ${locationName}`, completed: ['Dispatched', 'In Transit', 'Out for Delivery', 'Delivered'].includes(status || o.status), current: status === 'Dispatched' },
+              { title: 'In Transit', time: 'In Progress', description: 'En route to salon delivery address', completed: ['In Transit', 'Out for Delivery', 'Delivered'].includes(status || o.status) },
+              { title: 'Delivered', time: 'Pending', description: 'Delivered to salon recipient', completed: (status || o.status) === 'Delivered' },
+            ]
+          };
+        }
+        return o;
+      })
+    );
   };
 
   const handleReorder = (order: Order) => {
@@ -467,6 +611,7 @@ export default function App() {
                   setSelectedDistributorFilter(null);
                   setActiveTab('directory');
                 }}
+                distributorOffers={distributorOffers}
               />
             )}
 
@@ -560,6 +705,7 @@ export default function App() {
         }}
         isWishlisted={selectedProduct ? wishlistIds.includes(selectedProduct.id) : false}
         onToggleWishlist={handleToggleWishlist}
+        distributorOffers={distributorOffers}
       />
 
       {/* Quote Request Modal */}
@@ -593,6 +739,10 @@ export default function App() {
           distributor={selectedDistributorProfile}
           products={products}
           reels={reels}
+          orders={orders}
+          user={user}
+          warehouseLocations={warehouseLocations}
+          distributorOffers={distributorOffers}
           onUploadReel={handleUploadReel}
           onEditReel={handleEditReel}
           onDeleteReel={handleDeleteReel}
@@ -603,11 +753,28 @@ export default function App() {
           onRequestQuote={(d) => setSelectedDistributorForQuote(d)}
           onClose={() => setSelectedDistributorProfile(null)}
           onAddProduct={handleAddProduct}
+          onViewInvoice={(order) => setSelectedInvoiceOrder(order)}
+          onUpdateOrderStatus={handleUpdateOrderStatus}
+          onUpdateProductStock={handleUpdateProductStock}
+          onAddWarehouseLocation={handleAddWarehouseLocation}
+          onUpdateWarehouseLocation={handleUpdateWarehouseLocation}
+          onSetDefaultWarehouseLocation={handleSetDefaultWarehouseLocation}
+          onAssignDispatchLocation={handleAssignDispatchLocation}
+          onAddOffer={handleAddOffer}
+          onDeleteOffer={handleDeleteOffer}
+          onToggleOfferStatus={handleToggleOfferStatus}
         />
       )}
 
       {/* Persistent Nexora WhatsApp/Live Support desk */}
       <NexoraSupport />
+
+      {/* Global Mandatory Requirement Footer */}
+      <footer className="bg-[#8e004b] text-white text-center py-2 px-4 text-xs font-black tracking-widest flex items-center justify-center gap-2.5 shadow-md mt-auto select-none print:hidden">
+        <span className="material-symbols-outlined text-sm text-amber-300 animate-pulse">warning</span>
+        <span>STITCH INDIA नहीं बनाता है</span>
+        <span className="material-symbols-outlined text-sm text-amber-300 animate-pulse">warning</span>
+      </footer>
     </div>
   );
 }

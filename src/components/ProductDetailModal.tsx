@@ -1,5 +1,5 @@
 import { useState, useEffect, MouseEvent, FormEvent, useMemo } from 'react';
-import { Product } from '../types';
+import { Product, DistributorOffer } from '../types';
 import { PRODUCTS_DATA } from '../data/mockData';
 
 interface ProductDetailModalProps {
@@ -10,6 +10,7 @@ interface ProductDetailModalProps {
   onSelectProduct?: (product: Product) => void;
   isWishlisted?: boolean;
   onToggleWishlist?: (product: Product) => void;
+  distributorOffers?: DistributorOffer[];
 }
 
 interface ReviewItem {
@@ -33,6 +34,7 @@ export function ProductDetailModal({
   onSelectProduct,
   isWishlisted = false,
   onToggleWishlist,
+  distributorOffers = [],
 }: ProductDetailModalProps) {
   if (!product) return null;
 
@@ -145,13 +147,23 @@ export function ProductDetailModal({
     setTimeout(() => setCopied(false), 2500);
   };
 
-  // Calculate tier price based on current quantity
+  // Check active offer
+  const activeOffer = distributorOffers.find(
+    (o) => o.isActive && (o.productId === product.id || o.productName.toLowerCase() === product.name.toLowerCase())
+  );
+  const offerDiscountPct = activeOffer?.discountPercentage || 0;
+
+  // Calculate tier price based on current quantity, adjusted by offerDiscountPct
   const matchedTier =
     [...product.bulkTiers]
       .reverse()
       .find((tier) => quantity >= tier.minQty) || product.bulkTiers[0];
 
-  const currentUnitPrice = matchedTier.pricePerUnit;
+  const rawUnitPrice = matchedTier.pricePerUnit;
+  const currentUnitPrice = offerDiscountPct > 0 
+    ? Math.round(rawUnitPrice * (1 - offerDiscountPct / 100))
+    : rawUnitPrice;
+
   const totalPrice = currentUnitPrice * quantity;
   const estimatedSalonRevenue = Math.round(totalPrice * (1 + product.salonMarginPercent / 100));
   const estimatedProfit = estimatedSalonRevenue - totalPrice;
@@ -345,6 +357,26 @@ export function ProductDetailModal({
                 {product.description}
               </p>
 
+              {/* Active Offer Banner */}
+              {activeOffer && (
+                <div className="mb-4 bg-gradient-to-r from-[#FDE7F3] to-rose-50 border border-[#8e004b]/30 rounded-2xl p-3 flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[#8e004b] text-xl bg-white p-2 rounded-xl shadow-xs">
+                      local_offer
+                    </span>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#8e004b]">
+                        {activeOffer.offerType} Active
+                      </span>
+                      <h4 className="font-extrabold text-xs text-[#1c1b1b]">{activeOffer.title}</h4>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black bg-[#8e004b] text-white px-3 py-1 rounded-full shadow-xs animate-pulse">
+                    {offerDiscountPct}% OFF Deal
+                  </span>
+                </div>
+              )}
+
               {/* Bulk Pricing Tiers Table */}
               <div className="mb-4">
                 <span className="text-xs font-bold text-[#1c1b1b] block mb-1.5">
@@ -353,6 +385,7 @@ export function ProductDetailModal({
                 <div className="grid grid-cols-3 gap-1.5 text-center">
                   {product.bulkTiers.map((tier) => {
                     const isActive = matchedTier.minQty === tier.minQty;
+                    const finalTierPrice = offerDiscountPct > 0 ? Math.round(tier.pricePerUnit * (1 - offerDiscountPct / 100)) : tier.pricePerUnit;
                     return (
                       <button
                         key={tier.minQty}
@@ -367,12 +400,19 @@ export function ProductDetailModal({
                         <span className="block text-[10px] uppercase font-semibold">
                           {tier.minQty}+ Units
                         </span>
-                        <span className="font-bold text-xs">
-                          ₹{tier.pricePerUnit.toLocaleString('en-IN')}
-                        </span>
-                        {tier.discountPercent > 0 && (
-                          <span className="block text-[9px] text-green-700 font-bold">
-                            {tier.discountPercent}% OFF
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-xs text-[#8e004b]">
+                            ₹{finalTierPrice.toLocaleString('en-IN')}
+                          </span>
+                          {offerDiscountPct > 0 && (
+                            <span className="text-[10px] text-stone-400 line-through">
+                              ₹{tier.pricePerUnit.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                        {(tier.discountPercent > 0 || offerDiscountPct > 0) && (
+                          <span className="block text-[9px] text-green-700 font-bold mt-0.5">
+                            {offerDiscountPct > 0 ? `${offerDiscountPct}% Deal Off` : `${tier.discountPercent}% OFF`}
                           </span>
                         )}
                       </button>
