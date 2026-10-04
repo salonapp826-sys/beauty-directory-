@@ -19,7 +19,7 @@ interface SalonInsightsSectionProps {
 
 const COLORS = ['#8e004b', '#0150d6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
 
-export function SalonInsightsSection({ orders }: SalonInsightsSectionProps) {
+export function SalonInsightsSection({ orders = [] }: SalonInsightsSectionProps) {
   const [timeFilter, setTimeFilter] = useState<'ALL' | '2026' | '2025'>('ALL');
 
   // Filter orders based on time range if needed
@@ -78,8 +78,8 @@ export function SalonInsightsSection({ orders }: SalonInsightsSectionProps) {
     const productMap: Record<string, { name: string; quantity: number; spend: number }> = {};
 
     filteredOrders.forEach((order) => {
-      order.items.forEach((item) => {
-        const pName = item.product.name;
+      order.items?.forEach((item) => {
+        const pName = item.product?.name || 'Unknown Product';
         if (!productMap[pName]) {
           productMap[pName] = { name: pName, quantity: 0, spend: 0 };
         }

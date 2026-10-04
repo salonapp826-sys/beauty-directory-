@@ -7,12 +7,12 @@ interface QuoteModalProps {
 }
 
 export function QuoteModal({ distributor, onClose }: QuoteModalProps) {
-  if (!distributor) return null;
-
   const [productDetails, setProductDetails] = useState('');
   const [estimatedQuantity, setEstimatedQuantity] = useState('20-50 units');
   const [deliveryPincode, setDeliveryPincode] = useState('400050');
   const [sent, setSent] = useState(false);
+
+  if (!distributor) return null;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

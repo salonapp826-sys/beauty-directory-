@@ -22,8 +22,6 @@ export function CartDrawer({
   user,
   onOrderPlaced,
 }: CartDrawerProps) {
-  if (!isOpen) return null;
-
   // Checkout Mode: Registered Profile vs Guest Checkout
   const [checkoutMode, setCheckoutMode] = useState<'profile' | 'guest'>(
     user ? 'profile' : 'guest'
@@ -50,6 +48,13 @@ export function CartDrawer({
   const [couponError, setCouponError] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  // Registered Address selection
+  const defaultAddr = user?.savedAddresses?.find((a) => a.isDefault) || user?.savedAddresses?.[0];
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(defaultAddr?.id || '');
+  const selectedAddress = user?.savedAddresses?.find((a) => a.id === selectedAddressId) || defaultAddr;
+
+  if (!isOpen) return null;
+
   // Subtotal calculation
   const subtotal = items.reduce((acc, item) => {
     return acc + item.selectedTierPrice * item.quantity;
@@ -59,11 +64,6 @@ export function CartDrawer({
   const gstAmount = applyGst ? Math.round(subtotal * 0.18) : 0;
   const shipping = subtotal > 5000 ? 0 : 250;
   const finalTotal = Math.max(0, subtotal + gstAmount + shipping - couponDiscount);
-
-  // Registered Address selection
-  const defaultAddr = user?.savedAddresses?.find((a) => a.isDefault) || user?.savedAddresses?.[0];
-  const [selectedAddressId, setSelectedAddressId] = useState<string>(defaultAddr?.id || '');
-  const selectedAddress = user?.savedAddresses?.find((a) => a.id === selectedAddressId) || defaultAddr;
 
   const handleApplyCoupon = () => {
     setCouponError('');

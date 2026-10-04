@@ -36,9 +36,7 @@ export function ProductDetailModal({
   onToggleWishlist,
   distributorOffers = [],
 }: ProductDetailModalProps) {
-  if (!product) return null;
-
-  const [quantity, setQuantity] = useState(product.minOrderQuantity || 1);
+  const [quantity, setQuantity] = useState(product?.minOrderQuantity || 1);
   const [added, setAdded] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -46,31 +44,6 @@ export function ProductDetailModal({
   const [isPlayingProductVideo, setIsPlayingProductVideo] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [reelLiked, setReelLiked] = useState(false);
-
-  // Sync state on product change
-  useEffect(() => {
-    if (product) {
-      setQuantity(product.minOrderQuantity || 1);
-      setAdded(false);
-      setCopied(false);
-      setIsFormOpen(false);
-    }
-  }, [product?.id]);
-
-  // Calculate up to 4 similar items from the same category
-  const similarProducts = useMemo(() => {
-    if (!product) return [];
-    const sameCategory = PRODUCTS_DATA.filter(
-      (p) => p.id !== product.id && p.category.toLowerCase() === product.category.toLowerCase()
-    );
-    if (sameCategory.length >= 4) {
-      return sameCategory.slice(0, 4);
-    }
-    const otherProducts = PRODUCTS_DATA.filter(
-      (p) => p.id !== product.id && p.category.toLowerCase() !== product.category.toLowerCase()
-    );
-    return [...sameCategory, ...otherProducts].slice(0, 4);
-  }, [product]);
 
   // Review Form States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -113,18 +86,43 @@ export function ProductDetailModal({
     },
     {
       id: 'rev-3',
-      authorName: 'Neha Joshi',
-      salonName: 'Velvet Touch Parlour & Spa',
+      authorName: 'Meera Sengupta',
+      salonName: 'The Silk Crown Studio',
       location: 'Bengaluru',
       rating: 4,
-      date: '2 weeks ago',
-      title: 'Great product texture and pleasant natural aroma',
+      date: '3 weeks ago',
+      title: 'Reliable salon supply & high repeat clients',
       comment:
-        'My senior stylists prefer this formula during client sessions. Works smoothly without weighing down hair or causing scalp irritation.',
+        'We purchase the 50-unit volume tiers for all our salon chairs. Margin is solid at 38% and delivery took under 2 days. Truly seamless wholesale platform.',
       verifiedBuyer: true,
       helpfulCount: 5,
     },
   ]);
+
+  // Sync state on product change
+  useEffect(() => {
+    if (product) {
+      setQuantity(product.minOrderQuantity || 1);
+      setAdded(false);
+      setCopied(false);
+      setIsFormOpen(false);
+    }
+  }, [product?.id]);
+
+  // Calculate up to 4 similar items from the same category
+  const similarProducts = useMemo(() => {
+    if (!product) return [];
+    const sameCategory = PRODUCTS_DATA.filter(
+      (p) => p.id !== product.id && p.category.toLowerCase() === product.category.toLowerCase()
+    );
+    if (sameCategory.length >= 4) {
+      return sameCategory.slice(0, 4);
+    }
+    const otherProducts = PRODUCTS_DATA.filter(
+      (p) => p.id !== product.id && p.category.toLowerCase() !== product.category.toLowerCase()
+    );
+    return [...sameCategory, ...otherProducts].slice(0, 4);
+  }, [product]);
 
   const handleShare = (e?: MouseEvent) => {
     if (e) e.stopPropagation();
@@ -148,24 +146,27 @@ export function ProductDetailModal({
   };
 
   // Check active offer
-  const activeOffer = distributorOffers.find(
-    (o) => o.isActive && (o.productId === product.id || o.productName.toLowerCase() === product.name.toLowerCase())
-  );
+  const activeOffer = product
+    ? distributorOffers.find(
+        (o) => o.isActive && (o.productId === product.id || o.productName.toLowerCase() === product.name.toLowerCase())
+      )
+    : undefined;
   const offerDiscountPct = activeOffer?.discountPercentage || 0;
 
   // Calculate tier price based on current quantity, adjusted by offerDiscountPct
-  const matchedTier =
-    [...product.bulkTiers]
-      .reverse()
-      .find((tier) => quantity >= tier.minQty) || product.bulkTiers[0];
+  const matchedTier = product?.bulkTiers
+    ? [...product.bulkTiers]
+        .reverse()
+        .find((tier) => quantity >= tier.minQty) || product.bulkTiers[0]
+    : { minQty: 1, pricePerUnit: 0, label: '' };
 
-  const rawUnitPrice = matchedTier.pricePerUnit;
+  const rawUnitPrice = matchedTier?.pricePerUnit || 0;
   const currentUnitPrice = offerDiscountPct > 0 
     ? Math.round(rawUnitPrice * (1 - offerDiscountPct / 100))
     : rawUnitPrice;
 
   const totalPrice = currentUnitPrice * quantity;
-  const estimatedSalonRevenue = Math.round(totalPrice * (1 + product.salonMarginPercent / 100));
+  const estimatedSalonRevenue = Math.round(totalPrice * (1 + (product?.salonMarginPercent || 0) / 100));
   const estimatedProfit = estimatedSalonRevenue - totalPrice;
 
   const handleAdd = () => {
@@ -218,10 +219,13 @@ export function ProductDetailModal({
   };
 
   const averageRating = useMemo(() => {
+    if (!product) return '5.0';
     if (reviewsList.length === 0) return product.rating;
     const total = reviewsList.reduce((acc, r) => acc + r.rating, 0);
     return (total / reviewsList.length).toFixed(1);
-  }, [reviewsList, product.rating]);
+  }, [reviewsList, product?.rating]);
+
+  if (!product) return null;
 
   return (
     <div

@@ -659,68 +659,78 @@ export default function App() {
       )}
 
       {/* Slide-over Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onClearCart={handleClearCart}
-        user={user}
-        onOrderPlaced={handleOrderPlaced}
-      />
+      {isCartOpen && (
+        <CartDrawer
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          items={cartItems}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveItem}
+          onClearCart={handleClearCart}
+          user={user}
+          onOrderPlaced={handleOrderPlaced}
+        />
+      )}
 
       {/* Slide-over Wishlist Drawer */}
-      <WishlistDrawer
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        wishlistProducts={wishlistProducts}
-        onRemoveFromWishlist={handleRemoveFromWishlist}
-        onClearWishlist={handleClearWishlist}
-        onAddToCart={handleAddToCart}
-        onSelectProduct={(p) => setSelectedProduct(p)}
-        onExploreCatalog={() => {
-          setCategoryFilter(null);
-          setSelectedDistributorFilter(null);
-          setActiveTab('shop');
-        }}
-      />
+      {isWishlistOpen && (
+        <WishlistDrawer
+          isOpen={isWishlistOpen}
+          onClose={() => setIsWishlistOpen(false)}
+          wishlistProducts={wishlistProducts}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
+          onClearWishlist={handleClearWishlist}
+          onAddToCart={handleAddToCart}
+          onSelectProduct={(p) => setSelectedProduct(p)}
+          onExploreCatalog={() => {
+            setCategoryFilter(null);
+            setSelectedDistributorFilter(null);
+            setActiveTab('shop');
+          }}
+        />
+      )}
 
       {/* Product Detail Modal */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        onAddToCart={handleAddToCart}
-        onSelectProduct={(p) => setSelectedProduct(p)}
-        onViewDistributor={(distId) => {
-          setSelectedProduct(null);
-          const dist = DISTRIBUTORS_DATA.find(
-            (d) => d.id === distId || d.name.toLowerCase() === distId.toLowerCase() || d.name.toLowerCase().includes(distId.toLowerCase())
-          );
-          if (dist) {
-            setSelectedDistributorProfile(dist);
-          } else {
-            setActiveTab('directory');
-          }
-        }}
-        isWishlisted={selectedProduct ? wishlistIds.includes(selectedProduct.id) : false}
-        onToggleWishlist={handleToggleWishlist}
-        distributorOffers={distributorOffers}
-      />
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onAddToCart={handleAddToCart}
+          onSelectProduct={(p) => setSelectedProduct(p)}
+          onViewDistributor={(distId) => {
+            setSelectedProduct(null);
+            const dist = DISTRIBUTORS_DATA.find(
+              (d) => d.id === distId || d.name.toLowerCase() === distId.toLowerCase() || d.name.toLowerCase().includes(distId.toLowerCase())
+            );
+            if (dist) {
+              setSelectedDistributorProfile(dist);
+            } else {
+              setActiveTab('directory');
+            }
+          }}
+          isWishlisted={wishlistIds.includes(selectedProduct.id)}
+          onToggleWishlist={handleToggleWishlist}
+          distributorOffers={distributorOffers}
+        />
+      )}
 
       {/* Quote Request Modal */}
-      <QuoteModal
-        distributor={selectedDistributorForQuote}
-        onClose={() => setSelectedDistributorForQuote(null)}
-      />
+      {selectedDistributorForQuote && (
+        <QuoteModal
+          distributor={selectedDistributorForQuote}
+          onClose={() => setSelectedDistributorForQuote(null)}
+        />
+      )}
 
       {/* Tax Invoice Modal */}
-      <InvoiceModal
-        order={selectedInvoiceOrder}
-        user={user}
-        onClose={() => setSelectedInvoiceOrder(null)}
-        onTrackOrder={(order) => setSelectedTrackingOrder(order)}
-      />
+      {selectedInvoiceOrder && (
+        <InvoiceModal
+          order={selectedInvoiceOrder}
+          user={user}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          onTrackOrder={(order) => setSelectedTrackingOrder(order)}
+        />
+      )}
 
       {/* Interactive Track Shipment Modal */}
       {selectedTrackingOrder && (
